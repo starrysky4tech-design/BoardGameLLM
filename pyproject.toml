@@ -1,0 +1,150 @@
+[project]
+name = "bglm"
+version = "0.1.0"
+description = "ローカルPCで複数のターン制ボードゲームを自動プレイする、プラグイン式ゲームエージェント"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "numpy>=2",
+    "opencv-python",
+    "mss",
+    "pywin32",
+    "pydirectinput",
+    "pillow",
+    "pydantic>=2.14.2",
+    "pynput>=1.8.2",
+    "typer>=0.27.3",
+]
+
+[project.scripts]
+bglm = "bglm.cli.main:app"
+
+[dependency-groups]
+dev = [
+    "ruff",
+    "mypy",
+    "pytest",
+    "pytest-cov",
+    "import-linter",
+    "types-pywin32>=312.0.0.20261024",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/bglm"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["src", "tests", "scripts"]
+extend-exclude = ["docs", ".steering"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "N", "NPY", "TID251"]
+# 全角を2桁で数えるため、日本語コメントがE501に掛かる。長さはフォーマッタに任せる
+ignore = ["E501"]
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"random.random".msg = "グローバル乱数は使わない。random.Random を引数で受け取る"
+"random.randint".msg = "グローバル乱数は使わない。random.Random を引数で受け取る"
+"random.randrange".msg = "グローバル乱数は使わない。random.Random を引数で受け取る"
+"random.choice".msg = "グローバル乱数は使わない。random.Random を引数で受け取る"
+"random.choices".msg = "グローバル乱数は使わない。random.Random を引数で受け取る"
+"random.shuffle".msg = "グローバル乱数は使わない。random.Random を引数で受け取る"
+"random.sample".msg = "グローバル乱数は使わない。random.Random を引数で受け取る"
+"random.uniform".msg = "グローバル乱数は使わない。random.Random を引数で受け取る"
+"random.gauss".msg = "グローバル乱数は使わない。random.Random を引数で受け取る"
+"random.seed".msg = "グローバル乱数は使わない。random.Random を引数で受け取る"
+"random.getrandbits".msg = "グローバル乱数は使わない。random.Random を引数で受け取る"
+"numpy.random.seed".msg = "グローバル乱数は使わない。numpy.random.Generator を引数で受け取る"
+
+[tool.mypy]
+strict = true
+files = ["src", "scripts"]
+
+[[tool.mypy.overrides]]
+# 型情報(スタブ・py.typed)を持たないライブラリ
+module = ["pydirectinput", "pynput", "pynput.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+markers = [
+    "device: 実機が必要なテスト",
+]
+addopts = "--strict-markers --import-mode=importlib -m 'not device'"
+testpaths = ["tests"]
+pythonpath = ["src", "tests", "."]
+
+[tool.importlinter]
+root_package = "bglm"
+include_external_packages = true
+
+# docs/04 の「依存関係のルール」を機械的に検証する
+
+[[tool.importlinter.contracts]]
+name = "core は他のパッケージに依存しない"
+type = "forbidden"
+source_modules = ["bglm.core"]
+forbidden_modules = [
+    "bglm.application",
+    "bglm.infrastructure",
+    "bglm.toolkit",
+    "bglm.plugins",
+    "bglm.cli",
+]
+
+[[tool.importlinter.contracts]]
+name = "application は plugins と infrastructure の具象に依存しない"
+type = "forbidden"
+source_modules = ["bglm.application"]
+forbidden_modules = [
+    "bglm.plugins",
+    "bglm.infrastructure",
+    "bglm.toolkit",
+    "bglm.cli",
+]
+
+[[tool.importlinter.contracts]]
+name = "infrastructure は core だけに依存する"
+type = "forbidden"
+source_modules = ["bglm.infrastructure"]
+forbidden_modules = [
+    "bglm.application",
+    "bglm.plugins",
+    "bglm.toolkit",
+    "bglm.cli",
+]
+
+[[tool.importlinter.contracts]]
+name = "toolkit は core だけに依存する"
+type = "forbidden"
+source_modules = ["bglm.toolkit"]
+forbidden_modules = [
+    "bglm.application",
+    "bglm.infrastructure",
+    "bglm.plugins",
+    "bglm.cli",
+]
+
+[[tool.importlinter.contracts]]
+name = "plugins は共通基盤の実行部分に依存しない"
+type = "forbidden"
+source_modules = ["bglm.plugins"]
+forbidden_modules = [
+    "bglm.application",
+    "bglm.infrastructure",
+    "bglm.cli",
+]
+
+[[tool.importlinter.contracts]]
+name = "logic は画面・OpenCV・VLM・toolkit に依存しない"
+type = "forbidden"
+source_modules = ["bglm.plugins.*.logic"]
+forbidden_modules = [
+    "bglm.plugins.*.vision",
+    "bglm.toolkit",
+    "bglm.infrastructure",
+    "cv2",
+]

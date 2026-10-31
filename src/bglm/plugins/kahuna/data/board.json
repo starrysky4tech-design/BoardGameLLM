@@ -1,0 +1,328 @@
+{
+  "source": "Kahuna 1.7 の実機(SHG11)。点線の接続は地図から読み取り、手札のカード選択で出る照準マークでALOA/COCO/ELAI/HUNA の本数を確認した。点線の位置は、1ゲーム分の記録(173枚)の杖コマの中心の中央値(detected)。未観測の線は照準マークの位置(verified)か概算(estimated)。石の位置は、同じ記録の検出(COCO だけ概算)。docs/ideas/Kahuna_アプリ内ルール.md",
+  "frame": {
+    "width": 2432,
+    "height": 1080
+  },
+  "islands": [
+    "ALOA",
+    "BARI",
+    "COCO",
+    "DUDA",
+    "ELAI",
+    "FAAA",
+    "GOLA",
+    "HUNA",
+    "IFFI",
+    "JOJO",
+    "KAHU",
+    "LALE"
+  ],
+  "lines": [
+    {
+      "islands": [
+        "ALOA",
+        "BARI"
+      ],
+      "x": 1064,
+      "y": 292,
+      "position": "detected"
+    },
+    {
+      "islands": [
+        "ALOA",
+        "DUDA"
+      ],
+      "x": 912,
+      "y": 444,
+      "position": "detected"
+    },
+    {
+      "islands": [
+        "ALOA",
+        "HUNA"
+      ],
+      "x": 884,
+      "y": 657,
+      "position": "detected"
+    },
+    {
+      "islands": [
+        "BARI",
+        "COCO"
+      ],
+      "x": 1479,
+      "y": 344,
+      "position": "detected"
+    },
+    {
+      "islands": [
+        "BARI",
+        "DUDA"
+      ],
+      "x": 1006,
+      "y": 443,
+      "position": "detected"
+    },
+    {
+      "islands": [
+        "BARI",
+        "ELAI"
+      ],
+      "x": 1215,
+      "y": 477,
+      "position": "detected"
+    },
+    {
+      "islands": [
+        "BARI",
+        "FAAA"
+      ],
+      "x": 1409,
+      "y": 447,
+      "position": "detected"
+    },
+    {
+      "islands": [
+        "COCO",
+        "FAAA"
+      ],
+      "x": 1516,
+      "y": 434,
+      "position": "detected"
+    },
+    {
+      "islands": [
+        "COCO",
+        "GOLA"
+      ],
+      "x": 1595,
+      "y": 536,
+      "position": "detected"
+    },
+    {
+      "islands": [
+        "COCO",
+        "KAHU"
+      ],
+      "x": 1671,
+      "y": 607,
+      "position": "detected"
+    },
+    {
+      "islands": [
+        "DUDA",
+        "ELAI"
+      ],
+      "x": 1037,
+      "y": 559,
+      "position": "detected"
+    },
+    {
+      "islands": [
+        "DUDA",
+        "HUNA"
+      ],
+      "x": 967,
+      "y": 636,
+      "position": "detected"
+    },
+    {
+      "islands": [
+        "ELAI",
+        "FAAA"
+      ],
+      "x": 1369,
+      "y": 545,
+      "position": "detected"
+    },
+    {
+      "islands": [
+        "ELAI",
+        "HUNA"
+      ],
+      "x": 1040,
+      "y": 652,
+      "position": "detected"
+    },
+    {
+      "islands": [
+        "ELAI",
+        "IFFI"
+      ],
+      "x": 1170,
+      "y": 705,
+      "position": "detected"
+    },
+    {
+      "islands": [
+        "ELAI",
+        "JOJO"
+      ],
+      "x": 1334,
+      "y": 636,
+      "position": "verified"
+    },
+    {
+      "islands": [
+        "FAAA",
+        "GOLA"
+      ],
+      "x": 1505,
+      "y": 602,
+      "position": "detected"
+    },
+    {
+      "islands": [
+        "FAAA",
+        "JOJO"
+      ],
+      "x": 1433,
+      "y": 639,
+      "position": "detected"
+    },
+    {
+      "islands": [
+        "GOLA",
+        "JOJO"
+      ],
+      "x": 1473,
+      "y": 703,
+      "position": "detected"
+    },
+    {
+      "islands": [
+        "GOLA",
+        "KAHU"
+      ],
+      "x": 1577,
+      "y": 742,
+      "position": "detected"
+    },
+    {
+      "islands": [
+        "HUNA",
+        "IFFI"
+      ],
+      "x": 1001,
+      "y": 809,
+      "position": "detected"
+    },
+    {
+      "islands": [
+        "HUNA",
+        "LALE"
+      ],
+      "x": 981,
+      "y": 930,
+      "position": "detected"
+    },
+    {
+      "islands": [
+        "IFFI",
+        "JOJO"
+      ],
+      "x": 1323,
+      "y": 743,
+      "position": "detected"
+    },
+    {
+      "islands": [
+        "IFFI",
+        "KAHU"
+      ],
+      "x": 1421,
+      "y": 847,
+      "position": "estimated"
+    },
+    {
+      "islands": [
+        "IFFI",
+        "LALE"
+      ],
+      "x": 1139,
+      "y": 903,
+      "position": "detected"
+    },
+    {
+      "islands": [
+        "JOJO",
+        "KAHU"
+      ],
+      "x": 1449,
+      "y": 801,
+      "position": "detected"
+    },
+    {
+      "islands": [
+        "KAHU",
+        "LALE"
+      ],
+      "x": 1423,
+      "y": 916,
+      "position": "detected"
+    }
+  ],
+  "stones": {
+    "ALOA": {
+      "x": 863,
+      "y": 320,
+      "position": "detected"
+    },
+    "BARI": {
+      "x": 1213,
+      "y": 380,
+      "position": "detected"
+    },
+    "COCO": {
+      "x": 1625,
+      "y": 400,
+      "position": "estimated"
+    },
+    "DUDA": {
+      "x": 964,
+      "y": 516,
+      "position": "detected"
+    },
+    "ELAI": {
+      "x": 1177,
+      "y": 583,
+      "position": "detected"
+    },
+    "FAAA": {
+      "x": 1447,
+      "y": 536,
+      "position": "detected"
+    },
+    "GOLA": {
+      "x": 1544,
+      "y": 660,
+      "position": "detected"
+    },
+    "HUNA": {
+      "x": 956,
+      "y": 733,
+      "position": "detected"
+    },
+    "IFFI": {
+      "x": 1250,
+      "y": 793,
+      "position": "detected"
+    },
+    "JOJO": {
+      "x": 1393,
+      "y": 714,
+      "position": "detected"
+    },
+    "KAHU": {
+      "x": 1531,
+      "y": 842,
+      "position": "detected"
+    },
+    "LALE": {
+      "x": 1232,
+      "y": 956,
+      "position": "detected"
+    }
+  }
+}

@@ -1,0 +1,13 @@
+apk/
+docs/ideas/*.pdf
+assets/
+datasets/
+runs/
+models/
+cache/
+.venv/
+__pycache__/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.coverage

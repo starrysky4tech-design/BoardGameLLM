@@ -1,0 +1,53 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:starrysky.sakura.ne.jp)",
+      "Bash(python -c ' *)",
+      "Bash(python -X utf8 -c ' *)",
+      "Bash(py -0)",
+      "Bash(pip --version)",
+      "Bash(nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv)",
+      "Bash(ollama list *)",
+      "Bash(adb version *)",
+      "Bash(powershell -NoProfile -Command \"\\(Get-CimInstance Win32_Processor\\).Name; [math]::Round\\(\\(Get-CimInstance Win32_ComputerSystem\\).TotalPhysicalMemory/1GB,1\\)\")",
+      "Bash(adb -s 355092380222016 shell getprop ro.product.marketname)",
+      "Bash(adb -s 355092380222016 shell getprop ro.product.brand)",
+      "Bash(export PYTHONUTF8=1)",
+      "Bash(uv sync *)",
+      "Bash(powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check.ps1)",
+      "Bash(echo \"exit=$?\")",
+      "Bash(nvidia-smi --query-compute-apps=pid,process_name,used_memory --format=csv)",
+      "Bash(ollama ps *)",
+      "Bash(ollama pull *)",
+      "Bash(powershell -NoProfile -Command 'Get-Process | Where-Object { $_.MainWindowTitle -ne '\\\\'''\\\\'' } | Select-Object Id,ProcessName,MainWindowTitle | Format-Table -AutoSize | Out-String -Width 200')",
+      "Bash(nvidia-smi --query-gpu=memory.used,memory.total --format=csv,noheader)",
+      "Bash(sed -i 's/  # type: ignore\\\\[attr-defined\\\\]//' scripts/common/win_capture.py)",
+      "Bash(uv add *)",
+      "Bash(powershell -NoProfile -Command ' *)",
+      "Bash(nvidia-smi --query-gpu=memory.used --format=csv,noheader)",
+      "Bash(git switch *)",
+      "Bash(cd \"e:/Workspace/repository/LLMProject/BoardGameLLM\" *)",
+      "Bash(python \"C:/Users/ryuzi/AppData/Local/Temp/claude/e--Workspace-repository-LLMProject-BoardGameLLM/ffc11887-e0eb-47dd-8374-742ef565b79e/scratchpad/remove_stone_cap.py\" .)",
+      "Bash(python \"C:/Users/ryuzi/AppData/Local/Temp/claude/e--Workspace-repository-LLMProject-BoardGameLLM/ffc11887-e0eb-47dd-8374-742ef565b79e/scratchpad/remove_stone_cap_tests_docs.py\" .)",
+      "Bash(adb -s 355092380222016 get-state)",
+      "Bash(powershell -NoProfile -Command \".\\\\scripts\\\\check.ps1\")",
+      "Bash(adb -s 355092380222016 shell dumpsys window)",
+      "Bash(uv run bglm capture *)",
+      "Bash(uv run python -m scripts.common.observe *)",
+      "Bash(xargs wc -l)",
+      "Bash(git check-ignore *)",
+      "Bash(sed -i 's#`tests/device/`。画面取得#`tests/plugins/<game>/device/`。画面取得#' docs/05_DEVELOPMENT-GUIDELINES.md)",
+      "Bash(grep -n \"tests/\\\\|tests\\\\\\\\\\\\\\\\\" docs/05_DEVELOPMENT-GUIDELINES.md docs/03_ARCHITECTURE-DESIGN.md docs/02_FUNCTIONAL-DESIGN.md)",
+      "Bash(adb devices *)",
+      "Bash(adb -s 355092380222016 shell pm list packages)",
+      "Bash(adb -s 355092380222016 shell input keyevent KEYCODE_HOME)",
+      "Bash(timeout 580 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check.ps1)",
+      "Bash(git -C /e/Workspace/repository config user.name)",
+      "Bash(git -C /e/Workspace/repository config user.email)"
+    ],
+    "additionalDirectories": [
+      "\\tmp"
+    ]
+  }
+}
