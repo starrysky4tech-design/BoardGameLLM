@@ -34,3 +34,15 @@ def test_board_after_three_moves_is_read_without_problems() -> None:
     got = {k: (p.color, p.kind) for k, p in _shifted(reading.tops).items()}
     assert got == expected
     assert sum(1 for c, _ in got.values() if c is Color.BLACK) == 5
+
+
+@pytest.mark.skipif(
+    not Path("datasets/raw/hive/feasibility/debug/pan_after.png").exists(),
+    reason="記録画面が無い(Git管理外)",
+)
+def test_board_with_adjacent_black_tiles_is_read_completely() -> None:
+    """黒いマスが隣り合う盤(影でつながる)。格子で9駒すべてを読めること(実機で確かめた事象)。"""
+    reading = read_board(cv2.imread("datasets/raw/hive/feasibility/debug/pan_after.png"))
+    assert reading.problems == ()
+    assert len(reading.tops) == 9
+    assert any(p.color is B and p.kind is Kind.QUEEN for p in reading.tops.values())

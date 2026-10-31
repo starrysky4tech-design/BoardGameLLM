@@ -6,11 +6,11 @@
 import random
 import tomllib
 from collections.abc import Sequence
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from pathlib import Path
 
 from bglm.core.models import TimeBudget
-from bglm.plugins.hive.logic.models import Color, HiveMove, HiveState, Kind, Move, Place, opponent
+from bglm.plugins.hive.logic.models import Color, HiveMove, HiveState, opponent
 from bglm.plugins.hive.logic.rules import HiveRules
 
 WEIGHTS_PATH = Path(__file__).resolve().parents[1] / "data" / "strategy.toml"
@@ -21,17 +21,11 @@ DEFAULT_MAX_DEPTH = 4
 @dataclass(frozen=True)
 class Weights:
     queen_pressure: float  # 相手の女王の周囲の埋まり数 - 自分の女王の周囲の埋まり数
-    mobility: float  # 動ける手の数の差
-    queen_mobility: float  # 女王が動ける手の数の差
 
 
 def load_weights(path: Path = WEIGHTS_PATH) -> Weights:
     data = tomllib.loads(path.read_text(encoding="utf-8"))
-    return Weights(
-        queen_pressure=float(data["queen_pressure"]),
-        mobility=float(data["mobility"]),
-        queen_mobility=float(data["queen_mobility"]),
-    )
+    return Weights(queen_pressure=float(data["queen_pressure"]))
 
 
 class OutOfTimeError(Exception):
@@ -91,13 +85,18 @@ class HiveStrategy:
         if depth == 0:
             return self._evaluate(state)
         value = float("-inf")
-        for move in self._rules.legal_moves(state):
-            child = self._rules.apply(state, move)
+        for child in self._ordered_children(state):
             value = max(value, -self._negamax(child, depth - 1, -beta, -alpha, budget))
             alpha = max(alpha, value)
             if alpha >= beta:
                 break
         return value
+
+    def _ordered_children(self, state: HiveState) -> list[HiveState]:
+        """子の局面を、相手にとって悪い順(評価の良い手番側の値の小さい順)に並べる。枝刈りを効かせるため。"""
+        children = [self._rules.apply(state, move) for move in self._rules.legal_moves(state)]
+        children.sort(key=self._evaluate)
+        return children
 
     def _terminal_score(self, state: HiveState) -> float:
         match self._rules.outcome(state):
@@ -109,19 +108,15 @@ class HiveStrategy:
                 return 0.0
 
     def _evaluate(self, state: HiveState) -> float:
+        """手番の側から見た評価。合法手は作らない(葉で両者の合法手を作ると、探索が遅すぎるため)。
+
+        女王の周りの埋まり: 相手の女王が囲まれるほど良く、自分の女王が囲まれるほど悪い。
+        """
         me = state.to_move
         them = opponent(me)
         w = self._weights
         pressure = _queen_neighbours(state, them) - _queen_neighbours(state, me)
-        my_moves = self._rules.legal_moves(state)
-        their_moves = self._rules.legal_moves(replace(state, to_move=them))
-        queen_mobility = _queen_move_count(state, my_moves) - _queen_move_count(
-            replace(state, to_move=them), their_moves
-        )
-        mobility = len(my_moves) - len(their_moves)
-        return (
-            w.queen_pressure * pressure + w.mobility * mobility + w.queen_mobility * queen_mobility
-        )
+        return w.queen_pressure * pressure
 
 
 def _queen_neighbours(state: HiveState, color: Color) -> int:
@@ -129,15 +124,3 @@ def _queen_neighbours(state: HiveState, color: Color) -> int:
     if at is None:
         return 0
     return sum(1 for n in at.neighbors() if n in state.stacks)
-
-
-def _queen_move_count(state: HiveState, moves: Sequence[HiveMove]) -> int:
-    count = 0
-    for move in moves:
-        if isinstance(move, Place) and move.kind is Kind.QUEEN:
-            count += 1
-        elif isinstance(move, Move):
-            top = state.top(move.frm)
-            if top is not None and top.kind is Kind.QUEEN:
-                count += 1
-    return count

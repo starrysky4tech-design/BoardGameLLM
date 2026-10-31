@@ -88,12 +88,98 @@ TILE_SEED_MAX_AREA = 15000  # 白の女王は絵の穴を埋めて約13,500
 GLYPH_RADIUS = 0.85  # 絵を取る範囲: マス半径に対する比(輪郭を避ける)
 
 
+LATTICE_FRACTION = 0.3  # 格子点の中心の周りで、地の色が占める割合の下限(駒がある)
+LATTICE_RADIUS = 45  # 格子点の判定の円(画素)。マスの内側だけを見る
+ANCHOR_TOLERANCE = 8.0  # 白のマスの中心が格子点からこれ以上ずれたら、格子が合っていないとみなす
+
+
 def find_tiles(
     image: NDArray[np.uint8], top: int = BOARD_TOP, bottom: int = BOARD_BOTTOM
 ) -> list[Tile]:
-    """マスの中心を探し、絵の色を集める。隣り合うマスは侵食で切り離してから数える。"""
+    """マスの中心を探し、絵の色を集める。
+
+    白系の地のマスを基準にして、盤の格子(軸座標)の全点を調べる。各点の中心の周りで、
+    白系・黒系の地が占める割合を見る。マスがあれば割合が大きく、木目だけなら0になる。
+    影や絵の線で隣と分かれていなくても、格子で数えられる。白のマスが1つも見えないときは、
+    従来の方法(侵食による連結成分)に戻す。
+    """
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
     hue, sat, val = (hsv[:, :, i].astype(np.uint8) for i in range(3))
+    cream, dark = ground_masks(image, top, bottom)
+    anchors = _white_centres(cream)
+    if not anchors:
+        return _fallback_tiles(image, top, bottom, hue, sat, val)
+    # 基準は、面積が中央値に近い白のマス(欠けや重なりで大きさが崩れたものを避ける)
+    median_area = float(np.median([a for _, _, a in anchors]))
+    ax, ay, _ = min(anchors, key=lambda t: abs(t[2] - median_area))
+    disk = _disk(LATTICE_RADIUS)
+    frac_c = cv2.filter2D(cream.astype(np.float32), -1, disk, borderType=cv2.BORDER_CONSTANT)
+    frac_d = cv2.filter2D(dark.astype(np.float32), -1, disk, borderType=cv2.BORDER_CONSTANT)
+    h, w = image.shape[:2]
+    lattice: list[tuple[float, float]] = []
+    tiles: list[Tile] = []
+    for q in range(-16, 17):
+        for r in range(-16, 17):
+            cx = ax + 1.5 * TILE_R * q
+            cy = ay + TILE_H * (r + q / 2)
+            lattice.append((cx, cy))
+            # 中心の円が盤の範囲に収まる点だけを見る(盤の端の手持ちの列を数えないため)
+            if not (
+                top + LATTICE_RADIUS <= cy < bottom - LATTICE_RADIUS
+                and LATTICE_RADIUS <= cx < w - LATTICE_RADIUS
+            ):
+                continue
+            ix, iy = int(round(cx)), int(round(cy))
+            fc, fd = float(frac_c[iy, ix]), float(frac_d[iy, ix])
+            if max(fc, fd) < LATTICE_FRACTION:
+                continue
+            side = Color.WHITE if fc >= fd else Color.BLACK
+            tiles.append(
+                Tile(
+                    x=cx,
+                    y=cy,
+                    side=side,
+                    area=int(max(fc, fd) * np.pi * LATTICE_RADIUS**2),
+                    glyph_hsv=_glyph_pixels(hue, sat, val, cx, cy),
+                )
+            )
+    # 白のマスが格子からずれていれば、盤の大きさが違う画面(説明など)。従来の方法に戻す
+    for ax2, ay2, _ in anchors:
+        if min(math.hypot(ax2 - lx, ay2 - ly) for lx, ly in lattice) > ANCHOR_TOLERANCE:
+            return _fallback_tiles(image, top, bottom, hue, sat, val)
+    return tiles
+
+
+def _disk(radius: int) -> NDArray[np.float32]:
+    size = 2 * radius + 1
+    yy, xx = np.mgrid[0:size, 0:size]
+    d = ((xx - radius) ** 2 + (yy - radius) ** 2 <= radius * radius).astype(np.float32)
+    return np.asarray(d / d.sum(), dtype=np.float32)
+
+
+def _white_centres(mask: NDArray[np.uint8]) -> list[tuple[float, float, int]]:
+    """白系の地のマスの中心(侵食で隣と切り離した連結成分の重心)。"""
+    eroded = cv2.erode(mask, np.ones((ERODE_PX, ERODE_PX), np.uint8))
+    count, labels, stats, _ = cv2.connectedComponentsWithStats(eroded, connectivity=8)
+    out: list[tuple[float, float, int]] = []
+    for i in range(1, count):
+        x0, y0, w, h, area = (int(v) for v in stats[i])
+        if not TILE_SEED_MIN_AREA <= area <= TILE_SEED_MAX_AREA:
+            continue
+        ys, xs = np.nonzero(labels[y0 : y0 + h, x0 : x0 + w] == i)
+        out.append((x0 + float(xs.mean()), y0 + float(ys.mean()), area))
+    return out
+
+
+def _fallback_tiles(
+    image: NDArray[np.uint8],
+    top: int,
+    bottom: int,
+    hue: NDArray[np.uint8],
+    sat: NDArray[np.uint8],
+    val: NDArray[np.uint8],
+) -> list[Tile]:
+    """白のマスが見えないときの従来の方法(白と黒の両方を侵食で切り離して数える)。"""
     kernel = np.ones((ERODE_PX, ERODE_PX), np.uint8)
     tiles: list[Tile] = []
     for mask, side in zip(
@@ -107,8 +193,11 @@ def find_tiles(
                 continue
             ys, xs = np.nonzero(labels[y0 : y0 + h, x0 : x0 + w] == i)
             cx, cy = x0 + float(xs.mean()), y0 + float(ys.mean())
-            glyph_hsv = _glyph_pixels(hue, sat, val, cx, cy)
-            tiles.append(Tile(x=cx, y=cy, side=side, area=area, glyph_hsv=glyph_hsv))
+            tiles.append(
+                Tile(
+                    x=cx, y=cy, side=side, area=area, glyph_hsv=_glyph_pixels(hue, sat, val, cx, cy)
+                )
+            )
     return tiles
 
 

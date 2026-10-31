@@ -13,7 +13,7 @@ from bglm.plugins.hive.logic.models import Kind
 
 MIN_GLYPH_PIXELS = 300  # 絵の画素がこれより少なければ判定しない(空きマスや隠れた駒)
 HUE_SCALE = 10.0  # 色相の差を、この角度で1とみなす
-VALUE_SCALE = 60.0  # 明度の差を、この値で1とみなす
+VALUE_SCALE = 90.0  # 明るさの差を、この値で1とみなす(黒いマスの絵は白より少し暗く写る)
 TOLERANCE = 0.5  # 基準との距離がこれ以上なら、確信度は0
 
 # 種類 → (色相の中央値, 明度の中央値)
