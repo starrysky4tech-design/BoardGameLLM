@@ -16,7 +16,7 @@ from numpy.typing import NDArray
 
 from bglm.core.models import Frame, Recognition, UiKind, UiState
 from bglm.core.protocols import GameIo
-from bglm.plugins.hive.logic.models import Color, HexCoord, HiveState, Piece
+from bglm.plugins.hive.logic.models import Color, HexCoord, HiveState, Piece, initial_state
 from bglm.plugins.hive.logic.rules import HiveRules
 from bglm.plugins.hive.vision.grid import (
     TILE_H,
@@ -31,6 +31,7 @@ from bglm.plugins.hive.vision.pieces import classify
 from bglm.plugins.hive.vision.screens import ScreenKind, screen_of
 
 ELEMENT_MIN = 0.5  # 要素の確信度がこれ未満なら採用しない
+FOLLOW_PLIES = 2  # 直前の状態から観測の盤まで進める手数の上限(自分の手と、その後の相手の応手)
 HIDDEN_GROUND_MAX = 2000  # マスで覆われていない地の画素の上限(隠れた駒の地が見えたとみなす)
 
 
@@ -50,9 +51,10 @@ class HiveRecognizer:
         screen = screen_of(bool(reading.tops), reading.problems)
         if screen is not ScreenKind.BOARD:
             return _unknown(reading.confidence, (screen.value, *reading.problems))
-        if previous is None:
-            return _unknown(reading.confidence, ("no_previous_state",))
-        state = _follow(self._rules, previous, reading.tops)
+        # 最初の観測は直前の状態が無い。対局の開始(空の盤)から1手進んだ盤とみなして照合する
+        state = _follow(
+            self._rules, previous if previous is not None else initial_state(), reading.tops
+        )
         if state is None:
             return _unknown(reading.confidence, ("no_matching_move",))
         if self._rules.is_terminal(state):
@@ -131,13 +133,22 @@ def _tops_of(state: HiveState) -> dict[HexCoord, Piece]:
 def _follow(
     rules: HiveRules, previous: HiveState, observed: dict[HexCoord, Piece]
 ) -> HiveState | None:
+    """直前の状態から、0手・1手・2手のどれかで観測した盤になる状態を返す。
+
+    runner は、自分の手を打った後も直前の状態を打つ前の盤のままにするので、次の観測には
+    自分の手と相手の応手(2手)が含まれることがある。2手までを、この順で照合する。
+    """
     target = _shifted(observed)
-    if _shifted(_tops_of(previous)) == target:
-        return previous
-    for move in rules.legal_moves(previous):
-        child = rules.apply(previous, move)
-        if _shifted(_tops_of(child)) == target:
-            return child
+    frontier = [previous]
+    for depth in range(FOLLOW_PLIES + 1):
+        for state in frontier:
+            if _shifted(_tops_of(state)) == target:
+                return state
+        if depth == FOLLOW_PLIES:
+            break
+        frontier = [
+            rules.apply(state, move) for state in frontier for move in rules.legal_moves(state)
+        ]
     return None
 
 

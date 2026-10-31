@@ -82,3 +82,18 @@ def test_empty_screen_is_unknown() -> None:
     rec = HiveRecognizer(me=B).recognize(render({}), state(turn=0))
     assert rec.state is None
     assert rec.ui.kind is UiKind.UNKNOWN
+
+
+def test_board_after_our_move_and_the_reply_is_followed() -> None:
+    """runner は直前の状態を打つ前の盤のままにする。自分の手と、相手の応手の2手まで照合できること(実機で確かめた事象)。"""
+    from bglm.plugins.hive.logic.models import initial_state
+
+    base = initial_state()
+    hand = dict(base.hand)
+    hand[(W, Kind.ANT)] -= 1
+    before = state([(0, 0, W, Kind.ANT)], hand=hand, to_move=B, turn=1)
+    ours = RULES.apply(before, Place(Kind.ANT, at(1, -1)))
+    reply = RULES.apply(ours, Place(Kind.QUEEN, at(0, 1)))
+    rec = HiveRecognizer(me=B).recognize(render(tops_of(reply)), before)
+    assert rec.ui.kind is UiKind.PLAYABLE
+    assert rec.state == reply
