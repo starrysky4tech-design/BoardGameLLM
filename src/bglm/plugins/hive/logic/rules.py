@@ -38,9 +38,13 @@ def hive_connected(cells: frozenset[HexCoord]) -> bool:
 
 
 def can_slide(base: frozenset[HexCoord], frm: HexCoord, to: HexCoord) -> bool:
-    """隣へ滑り込めるか。2つの共通の隣が両方とも駒で埋まっていれば、門(ゲート)で阻まれる(Tutorial 11/12)。"""
+    """隣へ滑り込めるか。2つの共通の隣のうち、ちょうど1つが駒で埋まっていること。
+
+    両方が埋まっていれば門(ゲート)で阻まれる(Tutorial 11/12)。両方が空いていれば、
+    駒が盤から離れて滑れない(実機で確かめた。黒のクイーンの左上への移動は候補に出なかった)。
+    """
     shared = [n for n in frm.neighbors() if n in to.neighbors()]
-    return any(n not in base for n in shared)
+    return sum(1 for n in shared if n in base) == 1
 
 
 class HiveRules:
@@ -124,10 +128,15 @@ class HiveRules:
             top = stack[-1]
             if top.color is not color:
                 continue
+            # ワンハイブ: 動かす駒を取り除いた残りが1つにつながっていること(動いた先とのつながりは見ない)。
+            # 実機で確かめた。動かすとクイーンが切り離される駒は、動けないと表示された
+            remainder = occupied if len(stack) > 1 else occupied - {at}
+            if not hive_connected(remainder):
+                continue
+            remaining = frozenset(remainder)
             for to in _destinations(occupied, stack, at, top):
-                after = _occupied_after(occupied, stack, at, to)
-                if hive_connected(after):
-                    moves.append(Move(at, to))
+                if to in remaining or any(n in remaining for n in to.neighbors()):
+                    moves.append(Move(at, to))  # 移動先が残りの駒に触れている(ハイブから離れない)
         return moves
 
 

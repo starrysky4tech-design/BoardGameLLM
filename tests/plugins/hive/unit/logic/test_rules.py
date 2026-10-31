@@ -129,3 +129,22 @@ def test_hive_connected_detects_a_split() -> None:
     assert hive_connected(frozenset({at(0, 0), at(1, 0)}))
     assert not hive_connected(frozenset({at(0, 0), at(2, 0)}))
     assert hive_connected(frozenset())
+
+
+def test_slide_needs_exactly_one_filled_shared_neighbour() -> None:
+    # 共通の隣が両方空き: 駒が盤から離れて滑れない(実機: 黒のクイーンの左上への移動は候補に出なかった)
+    assert not can_slide(frozenset({at(5, 5)}), at(0, 0), at(-1, 0))
+    # 共通の隣が1つだけ埋まっている: 滑れる
+    assert can_slide(frozenset({at(1, -1)}), at(0, 0), at(1, 0))
+    # 両方埋まっている: 門で阻まれる
+    assert not can_slide(frozenset({at(1, -1), at(0, 1)}), at(0, 0), at(1, 0))
+
+
+def test_piece_whose_removal_splits_the_hive_cannot_move() -> None:
+    # 実機: 黒のアリ(0,1)は、取り除くとクイーン(0,0)が切り離されるので、動けない
+    s = state(
+        [(0, 0, B, Kind.QUEEN), (0, 1, B, Kind.ANT), (-1, 2, W, Kind.QUEEN), (0, 2, W, Kind.ANT)],
+        to_move=B,
+        turn=7,
+    )
+    assert not any(isinstance(m, Move) and m.frm == at(0, 1) for m in RULES.legal_moves(s))
