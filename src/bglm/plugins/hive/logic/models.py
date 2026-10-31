@@ -3,9 +3,11 @@
 盤は固定せず、駒のスタック(下から上)を座標ごとに持つ。手持ちは (色, 種類) ごとの残り数。
 """
 
+import functools
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import Enum, IntEnum
+from typing import NamedTuple
 
 
 class Color(IntEnum):
@@ -41,16 +43,25 @@ def opponent(color: Color) -> Color:
     return Color.BLACK if color is Color.WHITE else Color.WHITE
 
 
-@dataclass(frozen=True, order=True)
-class HexCoord:
+class HexCoord(NamedTuple):
+    """軸座標。NamedTuple にして、探索で多用するハッシュと比較を速くする(dataclass の生成処理より速い)。"""
+
     q: int
     r: int
 
-    def __add__(self, other: "HexCoord") -> "HexCoord":
+    def __add__(self, other: object) -> "HexCoord":
+        if not isinstance(other, HexCoord):
+            return NotImplemented
         return HexCoord(self.q + other.q, self.r + other.r)
 
     def neighbors(self) -> tuple["HexCoord", ...]:
-        return tuple(self + HexCoord(dq, dr) for dq, dr in DIRECTIONS)
+        return _neighbors_of(self)
+
+
+@functools.cache
+def _neighbors_of(at: HexCoord) -> tuple[HexCoord, ...]:
+    """隣の6マス。座標は不変なので結果を保持する(探索で何度も呼ばれるため)。"""
+    return tuple(HexCoord(at.q + dq, at.r + dr) for dq, dr in DIRECTIONS)
 
 
 @dataclass(frozen=True)

@@ -40,7 +40,13 @@ class Tile:
     glyph_hsv: NDArray[np.uint8]  # 絵の画素(N×3。OpenCVの HSV)。種類の判定に使う
 
 
-def ground_masks(image: NDArray[np.uint8]) -> tuple[NDArray[np.uint8], NDArray[np.uint8]]:
+HAND_TOP = 2100  # 自分の手持ちの列の範囲(下端の列。手持ちの中心は約2185)
+HAND_BOTTOM = 2350
+
+
+def ground_masks(
+    image: NDArray[np.uint8], top: int = BOARD_TOP, bottom: int = BOARD_BOTTOM
+) -> tuple[NDArray[np.uint8], NDArray[np.uint8]]:
     """白系の地と黒系の地の2つの2値画像(盤の範囲だけ)。"""
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
     sat, val = hsv[:, :, 1], hsv[:, :, 2]
@@ -48,8 +54,8 @@ def ground_masks(image: NDArray[np.uint8]) -> tuple[NDArray[np.uint8], NDArray[n
     dark = (val < DARK_MAX_VALUE).astype(np.uint8)
     filled = []
     for mask in (cream, dark):
-        mask[:BOARD_TOP] = 0
-        mask[BOARD_BOTTOM:] = 0
+        mask[:top] = 0
+        mask[bottom:] = 0
         filled.append(_fill_holes(mask))
     return filled[0], filled[1]
 
@@ -82,13 +88,17 @@ TILE_SEED_MAX_AREA = 15000  # 白の女王は絵の穴を埋めて約13,500
 GLYPH_RADIUS = 0.85  # 絵を取る範囲: マス半径に対する比(輪郭を避ける)
 
 
-def find_tiles(image: NDArray[np.uint8]) -> list[Tile]:
+def find_tiles(
+    image: NDArray[np.uint8], top: int = BOARD_TOP, bottom: int = BOARD_BOTTOM
+) -> list[Tile]:
     """マスの中心を探し、絵の色を集める。隣り合うマスは侵食で切り離してから数える。"""
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
     hue, sat, val = (hsv[:, :, i].astype(np.uint8) for i in range(3))
     kernel = np.ones((ERODE_PX, ERODE_PX), np.uint8)
     tiles: list[Tile] = []
-    for mask, side in zip(ground_masks(image), (Color.WHITE, Color.BLACK), strict=True):
+    for mask, side in zip(
+        ground_masks(image, top, bottom), (Color.WHITE, Color.BLACK), strict=True
+    ):
         eroded = cv2.erode(mask, kernel)
         count, labels, stats, _ = cv2.connectedComponentsWithStats(eroded, connectivity=8)
         for i in range(1, count):

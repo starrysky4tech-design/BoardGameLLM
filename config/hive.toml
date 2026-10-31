@@ -1,0 +1,12 @@
+# Hive の実行設定(Android端末 SHG11)。値の根拠は docs/02 の「既定値」。
+game = "hive"
+
+[target]
+kind = "android"
+serial = "355092380222016"  # adb は必ずこのシリアルを付けて呼ぶ
+input_space = "display"
+
+[runner]
+step_limit = 200
+confidence_threshold = 0.5
+think_budget_sec = 5.0
