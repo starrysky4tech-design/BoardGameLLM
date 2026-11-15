@@ -118,6 +118,8 @@ class MaquisRules:
             return False
         if action.recruit > state.recruits_left:
             return False
+        if state.resources.morale + action.gain.get("morale", 0) < 1:
+            return False  # 士気が尽きると壊滅するので、士気を下げる行動は士気1では出さない(保守的な仮定)
         if action.star and state.stars[MISSION_INDEX[loc]] >= action.until:
             return False
         return True
@@ -188,14 +190,22 @@ class MaquisRules:
         """
         captured = sum(1 for loc in state.agents if not self._returns(state, loc))
         defeated = captured >= state.agents_total
-        total = state.agents_total - captured
+        if captured == 1 and state.prisoners >= 1:
+            # 監獄は定員1人: 新しい捕縛者が入ると、前の囚人が戻り、使える団員の数は変わらない
+            # (実機で2回確認、2026-11-15: ターン6・9。捕縛の無いターンは、囚人は戻らない)。
+            # 2人以上が同時に捕縛されたときの扱いは未確認なので、従来どおり(全員が引かれる)にする
+            total = state.agents_total
+            prisoners = 1
+        else:
+            total = state.agents_total - captured
+            prisoners = state.prisoners + captured
         return replace(
             state,
             turn=state.turn + 1,
             phase=Phase.PLACEMENT,
             agents_total=total,
             unplaced=total,
-            prisoners=state.prisoners + captured,
+            prisoners=prisoners,
             agents=(),
             acted=frozenset(),
             patrols=frozenset(),

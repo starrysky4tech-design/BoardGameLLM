@@ -253,7 +253,7 @@ def test_recruit_stops_at_five_agents() -> None:
 
 def test_actions_of_unverified_locations_are_not_offered() -> None:
     # 確かめていない地点の行動は、合法手に出さない(推測で埋めない)
-    s = action_state(("black_market", "radio_a", "grocer"), funds=4, food=4)
+    s = action_state(("black_market_fence", "radio_a", "field_w", "grocer"), funds=4, food=4)
     offered = {m.location for m in RULES.legal_moves(s) if isinstance(m, Resolve)}
     assert offered == {"grocer"}
 
@@ -308,3 +308,65 @@ def test_does_not_use_both_the_mission_slot_and_its_node() -> None:
     on_slot = replace(base, agents=("mission_b",), unplaced=2)
     assert Place("pont_du_nord") not in rules.legal_moves(on_slot)
     assert Place("mission_b") in rules.legal_moves(base)
+
+
+def test_new_captive_replaces_the_old_one_and_the_pool_is_unchanged() -> None:
+    # 観測(2局目 ターン6・9): 監獄に1人いる状態で、もう1人が捕縛されても `4/4` のまま。
+    # 畑(西)は cafe 経由でしか戻れない。cafe に巡回が来ると、畑(西)の団員だけが捕縛される
+    s = replace(
+        initial_state(),
+        phase=Phase.ACTION,
+        unplaced=0,
+        agents_total=4,
+        prisoners=1,
+        agents=("field_w",),
+        patrols=frozenset({"cafe"}),
+    )
+    s = RULES.apply(s, EndPhase())
+    assert (s.agents_total, s.prisoners, s.defeated) == (4, 1, False)
+
+
+def test_no_capture_keeps_the_prisoner() -> None:
+    s = replace(
+        initial_state(), phase=Phase.ACTION, unplaced=0, agents_total=4, prisoners=1, agents=()
+    )
+    s = RULES.apply(s, EndPhase())
+    assert (s.agents_total, s.prisoners) == (4, 1)
+
+
+def action_with(agents: tuple[str, ...], **resources: int) -> "MaquisState":
+    return replace(
+        initial_state(),
+        phase=Phase.ACTION,
+        unplaced=0,
+        agents=agents,
+        resources=Resources(**resources),
+    )
+
+
+def test_slums_turns_food_and_medicine_into_morale() -> None:
+    # 実機(2026-11-15): 食料2→1、薬品2→1、士気4→5
+    s = action_with(("slums",), morale=4, food=2, medicine=2)
+    assert Resolve("slums", 0) in RULES.legal_moves(s)
+    after = RULES.apply(s, Resolve("slums", 0))
+    r = after.resources
+    assert (r.morale, r.food, r.medicine) == (5, 1, 1)
+
+
+def test_slums_needs_both_food_and_medicine() -> None:
+    s = action_with(("slums",), morale=4, food=2, medicine=0)
+    assert Resolve("slums", 0) not in RULES.legal_moves(s)
+
+
+def test_black_market_sells_food_or_medicine_for_funds_at_a_morale_cost() -> None:
+    # 実機: 食料1 → 資金1、士気-1(右列の順は食料、薬品)
+    s = action_with(("black_market",), morale=4, food=1, medicine=1)
+    r = RULES.apply(s, Resolve("black_market", 0)).resources
+    assert (r.funds, r.food, r.medicine, r.morale) == (1, 0, 1, 3)
+    r2 = RULES.apply(s, Resolve("black_market", 1)).resources
+    assert (r2.funds, r2.food, r2.medicine, r2.morale) == (1, 1, 0, 3)
+
+
+def test_black_market_is_not_offered_at_the_last_morale() -> None:
+    s = action_with(("black_market",), morale=1, food=1)
+    assert Resolve("black_market", 0) not in RULES.legal_moves(s)
