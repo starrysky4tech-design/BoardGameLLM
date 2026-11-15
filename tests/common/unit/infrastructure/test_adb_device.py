@@ -7,7 +7,7 @@ import pytest
 
 from bglm.core.config import AndroidTarget
 from bglm.core.errors import ConfigError, InputRejectedError, SourceLostError
-from bglm.core.models import Drag, KeyPress, Point, Tap
+from bglm.core.models import Drag, HoldDrag, KeyPress, Point, Tap
 from bglm.infrastructure.adb_device import AdbDevice
 
 SERIAL = "355092380222016"
@@ -148,6 +148,36 @@ class TestPerform:
             ["adb", "-s", SERIAL, "shell", "input", "swipe", "1", "2", "3", "4", "400"]
         ]
 
+    def test_hold_drag_runs_down_hold_moves_up_in_one_shell(self) -> None:
+        runner = FakeRunner()
+
+        make_device(runner).perform(
+            HoldDrag(Point(1257, 763), Point(1257, 300), hold_ms=600, steps=2, step_ms=50)
+        )
+
+        assert runner.calls == [
+            [
+                "adb",
+                "-s",
+                SERIAL,
+                "shell",
+                "input motionevent DOWN 1257 763; sleep 0.600; "
+                "input motionevent MOVE 1257 532; sleep 0.050; "
+                "input motionevent MOVE 1257 300; sleep 0.050; "
+                "input motionevent UP 1257 300",
+            ]
+        ]
+
+    def test_hold_drag_rejects_negative_coordinates_without_calling_adb(self) -> None:
+        runner = FakeRunner()
+
+        with pytest.raises(InputRejectedError):
+            make_device(runner).perform(
+                HoldDrag(Point(-1, 5), Point(3, 4), hold_ms=600, steps=1, step_ms=50)
+            )
+
+        assert runner.calls == []
+
     def test_key_press_is_rejected_without_calling_adb(self) -> None:
         runner = FakeRunner()
 
@@ -183,3 +213,26 @@ def test_physical_input_space_is_rejected_at_construction() -> None:
 
     with pytest.raises(ConfigError):
         AdbDevice(target, runner=FakeRunner())
+
+
+class TestFocusedPackage:
+    def test_reads_package_from_current_focus(self) -> None:
+        dump = (
+            b"  mCurrentFocus=Window{a1d8ae9 u0 com.eamobile.monopoly_na_wf/"
+            b"com.ea.game.monopolyclassic.MonopolyClassic}\n"
+        )
+        runner = FakeRunner(stdout=dump)
+
+        assert make_device(runner).focused_package() == "com.eamobile.monopoly_na_wf"
+        assert runner.calls == [["adb", "-s", SERIAL, "shell", "dumpsys", "window"]]
+
+    def test_launcher_focus_is_reported_as_other_package(self) -> None:
+        dump = b"  mCurrentFocus=Window{342a8c u0 jp.co.sharp.android.launcher3/jp.co.sharp.x}\n"
+
+        assert (
+            make_device(FakeRunner(stdout=dump)).focused_package()
+            == "jp.co.sharp.android.launcher3"
+        )
+
+    def test_no_focus_line_returns_none(self) -> None:
+        assert make_device(FakeRunner(stdout=b"nothing\n")).focused_package() is None

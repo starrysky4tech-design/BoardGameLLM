@@ -1,4 +1,4 @@
-"""白い文字(数字)の切り出しと、テンプレートとの照合。
+"""白い文字(数字)の切り出しと、画面の色のマスク。
 
 文字は白い塗りに黒い縁取りがある。縁取りの内側の白い連結成分を1文字として切り出し、
 一定の大きさに正規化して、テンプレートと正規化相関で比べる。
@@ -8,10 +8,25 @@ import cv2
 import numpy as np
 from numpy.typing import NDArray
 
+from bglm.toolkit.components import component_mask, connected_components
+
 GLYPH_SIZE = (24, 36)  # 幅, 高さ
 WHITE_MIN = 215  # 文字の白: 全チャンネルがこの値以上
 MIN_HEIGHT = 16
 MIN_AREA = 50
+
+# 赤(山札の丸、「READY FOR A NEW ROUND」の帯の模様): BGR の R が高く、G と B が低い
+RED_MIN = 150
+RED_OTHER_MAX = 110
+
+
+def red_mask(image: NDArray[np.uint8]) -> NDArray[np.bool_]:
+    """赤い画素(山札の丸、ラウンドの帯の模様)。"""
+    return (
+        (image[..., 2] > RED_MIN)
+        & (image[..., 1] < RED_OTHER_MAX)
+        & (image[..., 0] < RED_OTHER_MAX)
+    )
 
 
 def white_mask(roi: NDArray[np.uint8], circle: bool = False) -> NDArray[np.uint8]:
@@ -29,17 +44,16 @@ def white_mask(roi: NDArray[np.uint8], circle: bool = False) -> NDArray[np.uint8
 
 def extract_glyphs(mask: NDArray[np.uint8]) -> list[tuple[int, int, NDArray[np.uint8]]]:
     """連結成分ごとの (左端x, 右端x, 正規化した形)。小さすぎるものは捨てる。左から順。"""
-    count, labels, stats, _ = cv2.connectedComponentsWithStats(mask)
+    components, labels = connected_components(mask)
     found: list[tuple[int, int, NDArray[np.uint8]]] = []
-    for i in range(1, count):
-        x, y, w, h, area = (int(v) for v in stats[i])
-        if h < MIN_HEIGHT or area < MIN_AREA:
+    for c in components:
+        if c.height < MIN_HEIGHT or c.area < MIN_AREA:
             continue
-        crop = (labels[y : y + h, x : x + w] == i).astype(np.uint8) * 255
+        shape = component_mask(labels, c) * 255
         glyph = np.asarray(
-            cv2.resize(crop, GLYPH_SIZE, interpolation=cv2.INTER_AREA), dtype=np.uint8
+            cv2.resize(shape, GLYPH_SIZE, interpolation=cv2.INTER_AREA), dtype=np.uint8
         )
-        found.append((x, x + w, glyph))
+        found.append((c.x, c.x + c.width, glyph))
     return sorted(found, key=lambda g: g[0])
 
 

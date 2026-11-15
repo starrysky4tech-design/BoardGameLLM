@@ -44,13 +44,21 @@ from bglm.plugins.kahuna.vision.cards import (
 from bglm.plugins.kahuna.vision.screens import MY_TURN, OPPONENT_TURN, classify_screen
 from bglm.plugins.kahuna.vision.sticks import MAX_DISTANCE, find_blobs
 from bglm.plugins.kahuna.vision.templates import TemplateSet
+from bglm.toolkit.waiting import poll
 
 TAP_WAIT_SEC = 1.0  # タップ後の画面が落ち着くまでの待ち
+SETTLE_TRIES = 4  # 操作の結果を確かめる取得の回数(杖や捨て札の表示は少し遅れて出る)
 
 # 録画の座標(位置合わせ後)。実機の2026-10-31の操作で確かめた位置。
 DECK_TAP = Point(1066, 1045)  # 山札の中央(ALOA ステージで引けた位置)
 END_TURN_TAP = Point(2339, 997)  # 右下の手のマーク
 DISCARD_TAP = Point(805, 1007)  # 「DISCARD」の文字(カードを選ぶと出る)
+
+View = tuple[NDArray[np.uint8], Alignment]
+
+
+def _fail(reason: str) -> ExecutionResult:
+    return ExecutionResult(False, reason)
 
 
 class KahunaExecutor:
@@ -82,174 +90,164 @@ class KahunaExecutor:
             case PassDraw():
                 return self._end_turn(io, state)
             case _:
-                return ExecutionResult(False, f"未確認の操作: {type(move).__name__}")
+                return _fail(f"未確認の操作: {type(move).__name__}")
 
-    def _is_my_turn(self, image: NDArray[np.uint8], state: KahunaState) -> bool:
-        """自分の手番か。手札が0枚の手番は画面から区別できないので、引く操作に限り、手札0枚の状態を信じる。"""
-        name = classify_screen(image, self._templates).name
-        if name == MY_TURN:
-            return True
-        return not state.hand and name == OPPONENT_TURN
+    # --- 操作 -------------------------------------------------------------------
 
-    def _hand(self, image: NDArray[np.uint8]) -> list[CardReading]:
-        return read_hand(image, self._templates)
-
-    def _select_hand_card(
-        self, io: GameIo, image_hand: list[CardReading], island: int, alignment: Alignment
-    ) -> bool:
-        """手札の指定の島のカードを、読み取った位置で押す。無ければ False(押さない)。"""
-        matches = [c for c in image_hand if c.island == island]
-        if not matches:
-            return False
-        card = max(matches, key=lambda c: c.score)
-        self._tap(io, Point(card.x, card.y), alignment)
-        return True
+    def _place_stick(self, io: GameIo, move: PlaceStick) -> ExecutionResult:
+        view = self._my_turn_view(io)
+        if isinstance(view, ExecutionResult):
+            return view
+        image, alignment = view
+        if not self._select_hand_card(io, read_hand(image, self._templates), move.card, alignment):
+            return _fail(f"手札に {self._board.islands[move.card]} が無い")
+        line = self._board.lines[move.line].position
+        self._tap(io, line, alignment)
+        if self._wait_until(io, lambda img: self._has_stick(img, line, Player.ME)):
+            return ExecutionResult(True)
+        return _fail("杖コマが置かれたことを確認できない")
 
     def _remove_stick(self, io: GameIo, move: RemoveStick) -> ExecutionResult:
-        view = self._capture(io)
-        if view is None:
-            return ExecutionResult(False, "位置合わせの基準が見つからない")
+        view = self._my_turn_view(io)
+        if isinstance(view, ExecutionResult):
+            return view
         image, alignment = view
-        if classify_screen(image, self._templates).name != MY_TURN:
-            return ExecutionResult(False, "自分の手番の画面ではない")
-        hand = self._hand(image)
+        hand = read_hand(image, self._templates)
         first, second = move.cards
-        if first == second or not (
-            any(c.island == first for c in hand) and any(c.island == second for c in hand)
-        ):
-            return ExecutionResult(False, "除去に必要な2枚が手札に無い")
+        if first == second or any(self._best_card(hand, c) is None for c in (first, second)):
+            return _fail("除去に必要な2枚が手札に無い")
         self._select_hand_card(io, hand, first, alignment)
         self._select_hand_card(io, hand, second, alignment)
         line = self._board.lines[move.line].position
         self._tap(io, line, alignment)  # 2枚選ぶと出る赤い丸
-        after_view = self._capture(io)
-        if after_view is None:
-            return ExecutionResult(False, "除去の確認の画面で位置合わせできない")
-        removed = self._wait_until(io, lambda img: not self._has_opponent_stick(img, line))
-        if removed:
+        if self._capture(io) is None:
+            return _fail("除去の確認の画面で位置合わせできない")
+        if self._wait_until(io, lambda img: not self._has_stick(img, line, Player.OPPONENT)):
             return ExecutionResult(True)
-        return ExecutionResult(False, "相手の杖が取り除かれたことを確認できない")
-
-    @staticmethod
-    def _has_opponent_stick(image: NDArray[np.uint8], at: Point) -> bool:
-        for blob in find_blobs(image):
-            near = ((blob.center.x - at.x) ** 2 + (blob.center.y - at.y) ** 2) ** 0.5
-            if blob.owner is Player.OPPONENT and near <= MAX_DISTANCE:
-                return True
-        return False
+        return _fail("相手の杖が取り除かれたことを確認できない")
 
     def _discard(self, io: GameIo, move: DiscardCard) -> ExecutionResult:
-        view = self._capture(io)
-        if view is None:
-            return ExecutionResult(False, "位置合わせの基準が見つからない")
+        view = self._my_turn_view(io)
+        if isinstance(view, ExecutionResult):
+            return view
         image, alignment = view
-        if classify_screen(image, self._templates).name != MY_TURN:
-            return ExecutionResult(False, "自分の手番の画面ではない")
-        hand = self._hand(image)
+        hand = read_hand(image, self._templates)
         if not self._select_hand_card(io, hand, move.card, alignment):
-            return ExecutionResult(False, f"手札に {self._board.islands[move.card]} が無い")
+            return _fail(f"手札に {self._board.islands[move.card]} が無い")
         self._tap(io, DISCARD_TAP, alignment)
-        after_view = self._capture(io)
-        if after_view is None:
-            return ExecutionResult(False, "捨てた後の画面で位置合わせできない")
-        if self._wait_until(io, lambda img: len(self._hand(img)) == len(hand) - 1):
+        if self._capture(io) is None:
+            return _fail("捨てた後の画面で位置合わせできない")
+        if self._wait_until(io, lambda img: len(read_hand(img, self._templates)) == len(hand) - 1):
             return ExecutionResult(True)
-        return ExecutionResult(False, "手札が1枚減ったことを確認できない")
+        return _fail("手札が1枚減ったことを確認できない")
 
     def _draw_deck(self, io: GameIo, state: KahunaState) -> ExecutionResult:
-        view = self._capture(io)
-        if view is None:
-            return ExecutionResult(False, "位置合わせの基準が見つからない")
+        view = self._my_turn_view(io, state)
+        if isinstance(view, ExecutionResult):
+            return view
         image, alignment = view
-        if not self._is_my_turn(image, state):
-            return ExecutionResult(False, "自分の手番の画面ではない")
-        before = len(self._hand(image))
+        before = len(read_hand(image, self._templates))
         self._tap(io, DECK_TAP, alignment)
-        if self._wait_until(io, lambda img: len(self._hand(img)) == before + 1):
+        if self._wait_until(io, lambda img: len(read_hand(img, self._templates)) == before + 1):
             return ExecutionResult(True)
-        return ExecutionResult(False, "山札から引けたことを確認できない")
+        return _fail("山札から引けたことを確認できない")
 
     def _end_turn(self, io: GameIo, state: KahunaState) -> ExecutionResult:
-        view = self._capture(io)
-        if view is None:
-            return ExecutionResult(False, "位置合わせの基準が見つからない")
-        image, alignment = view
-        if not self._is_my_turn(image, state):
-            return ExecutionResult(False, "自分の手番の画面ではない")
-        self._tap(io, END_TURN_TAP, alignment)
+        view = self._my_turn_view(io, state)
+        if isinstance(view, ExecutionResult):
+            return view
+        self._tap(io, END_TURN_TAP, view[1])
         after_view = self._capture(io)
         if after_view is None:
             return ExecutionResult(True)  # 決算などで位置合わせできないのは、手番が変わった証拠
         if classify_screen(after_view[0], self._templates).name == MY_TURN:
-            return ExecutionResult(False, "手番が終わったことを確認できない")
+            return _fail("手番が終わったことを確認できない")
         return ExecutionResult(True)
+
+    def _draw_market(self, io: GameIo, move: DrawMarket, state: KahunaState) -> ExecutionResult:
+        view = self._my_turn_view(io, state)
+        if isinstance(view, ExecutionResult):
+            return view
+        image, alignment = view
+        market, _ = read_market(image, self._templates)
+        slots = [i for i, r in enumerate(market) if r is not None and r.island == move.card]
+        if not slots:
+            return _fail(f"場札に {self._board.islands[move.card]} が無い")
+        slot = slots[0]
+        x = MARKET_SLOT_X[slot] + MARKET_SLOT_W // 2
+        self._tap(io, Point(x, MARKET_NAME_Y + MARKET_NAME_H // 2), alignment)
+        after_view = self._capture(io)
+        if after_view is None:
+            return _fail("場札の確認の画面で位置合わせできない")
+        after = after_view[0]
+        if classify_screen(after, self._templates).name != MY_TURN:
+            return ExecutionResult(True)  # 引くと手番が終わり、手札が暗くなる
+        current = read_market(after, self._templates)[0][slot]
+        if current is not None and current.island == move.card:
+            return _fail("場札が引かれたことを確認できない")
+        return ExecutionResult(True)
+
+    # --- 共通の手順 -------------------------------------------------------------
+
+    def _my_turn_view(self, io: GameIo, state: KahunaState | None = None) -> View | ExecutionResult:
+        """操作の前提: 取得 → 位置合わせ → 自分の手番の確認。満たさなければ失敗の結果を返す(入力は送らない)。
+
+        state を渡すと、手札が0枚の状態に限り、相手の手番の表示でも自分の手番とみなす(引く・終える操作)。
+        手札が0枚の手番は、画面から区別できないため。
+        """
+        view = self._capture(io)
+        if view is None:
+            return _fail("位置合わせの基準が見つからない")
+        name = classify_screen(view[0], self._templates).name
+        hand_empty = state is not None and not state.hand
+        if name != MY_TURN and not (hand_empty and name == OPPONENT_TURN):
+            return _fail("自分の手番の画面ではない")
+        return view
+
+    @staticmethod
+    def _best_card(hand: list[CardReading], island: int) -> CardReading | None:
+        """手札の指定の島のカード。同じ島のカードが複数なら、確かに読めた方。"""
+        matches = [c for c in hand if c.island == island]
+        return max(matches, key=lambda c: c.score) if matches else None
+
+    def _select_hand_card(
+        self, io: GameIo, hand: list[CardReading], island: int, alignment: Alignment
+    ) -> bool:
+        """手札の指定の島のカードを、読み取った位置で押す。無ければ False(押さない)。"""
+        card = self._best_card(hand, island)
+        if card is None:
+            return False
+        self._tap(io, Point(card.x, card.y), alignment)
+        return True
+
+    @staticmethod
+    def _has_stick(image: NDArray[np.uint8], at: Point, owner: Player) -> bool:
+        """at の近くに、owner の杖コマがあるか。"""
+        for blob in find_blobs(image):
+            near = ((blob.center.x - at.x) ** 2 + (blob.center.y - at.y) ** 2) ** 0.5
+            if blob.owner is owner and near <= MAX_DISTANCE:
+                return True
+        return False
 
     def _tap(self, io: GameIo, point: Point, alignment: Alignment) -> None:
         """録画の座標の点を、取得画像の座標に直して押す。"""
         io.perform(Tap(alignment.to_screen(point)))
         self._sleep(self._wait_sec)
 
-    def _capture(self, io: GameIo) -> tuple[NDArray[np.uint8], Alignment] | None:
+    def _capture(self, io: GameIo) -> View | None:
         """録画の座標に揃えた画像と、ずれ。基準が見つからなければ None。"""
         return aligned_view(io.capture().image, self._templates.anchor)
 
-    def _place_stick(self, io: GameIo, move: PlaceStick) -> ExecutionResult:
-        view = self._capture(io)
-        if view is None:
-            return ExecutionResult(False, "位置合わせの基準が見つからない")
-        image, alignment = view
-        if classify_screen(image, self._templates).name != MY_TURN:
-            return ExecutionResult(False, "自分の手番の画面ではない")
-        cards = [c for c in read_hand(image, self._templates) if c.island == move.card]
-        if not cards:
-            return ExecutionResult(False, f"手札に {self._board.islands[move.card]} が無い")
-        card = max(cards, key=lambda c: c.score)  # 同じ島のカードが複数なら、確かに読めた方
-        line = self._board.lines[move.line]
-        self._tap(io, Point(card.x, card.y), alignment)
-        self._tap(io, line.position, alignment)
-        if self._wait_until(io, lambda img: self._has_own_stick(img, line.position)):
-            return ExecutionResult(True)
-        return ExecutionResult(False, "杖コマが置かれたことを確認できない")
-
-    def _has_own_stick(self, image: NDArray[np.uint8], at: Point) -> bool:
-        for blob in find_blobs(image):
-            near = ((blob.center.x - at.x) ** 2 + (blob.center.y - at.y) ** 2) ** 0.5
-            if blob.owner is Player.ME and near <= MAX_DISTANCE:
-                return True
-        return False
-
     def _wait_until(
-        self, io: GameIo, check: Callable[[NDArray[np.uint8]], bool], tries: int = 4
+        self, io: GameIo, check: Callable[[NDArray[np.uint8]], bool], tries: int = SETTLE_TRIES
     ) -> bool:
         """画面が落ち着くまで、取り直しながら確かめる(杖や捨て札の表示は少し遅れて出る)。"""
-        for _ in range(tries):
-            view = self._capture(io)
-            if view is not None and check(view[0]):
-                return True
-            self._sleep(self._wait_sec)
-        return False
-
-    def _draw_market(self, io: GameIo, move: DrawMarket, state: KahunaState) -> ExecutionResult:
-        view = self._capture(io)
-        if view is None:
-            return ExecutionResult(False, "位置合わせの基準が見つからない")
-        image, alignment = view
-        if not self._is_my_turn(image, state):
-            return ExecutionResult(False, "自分の手番の画面ではない")
-        market, _ = read_market(image, self._templates)
-        slots = [i for i, r in enumerate(market) if r is not None and r.island == move.card]
-        if not slots:
-            return ExecutionResult(False, f"場札に {self._board.islands[move.card]} が無い")
-        slot = slots[0]
-        x = MARKET_SLOT_X[slot] + MARKET_SLOT_W // 2
-        self._tap(io, Point(x, MARKET_NAME_Y + MARKET_NAME_H // 2), alignment)
-        after_view = self._capture(io)
-        if after_view is None:
-            return ExecutionResult(False, "場札の確認の画面で位置合わせできない")
-        after = after_view[0]
-        if classify_screen(after, self._templates).name != MY_TURN:
-            return ExecutionResult(True)  # 引くと手番が終わり、手札が暗くなる
-        current = read_market(after, self._templates)[0][slot]
-        if current is not None and current.island == move.card:
-            return ExecutionResult(False, "場札が引かれたことを確認できない")
-        return ExecutionResult(True)
+        _, ok = poll(
+            lambda: self._capture(io),
+            lambda view: view is not None and check(view[0]),
+            tries=tries,
+            wait_sec=self._wait_sec,
+            sleep=self._sleep,
+            wait_last=True,
+        )
+        return ok

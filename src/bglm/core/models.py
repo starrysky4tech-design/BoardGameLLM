@@ -72,11 +72,31 @@ class Drag:
 
 
 @dataclass(frozen=True)
+class HoldDrag:
+    """押下して保持し、段階的に移動してから離す(例: Monopoly のロールは、保持してから上へ移動する)。
+
+    保持が無いと、ダイスは転がっても結果が反映されない(実機で確認。RESULT.md)。
+    """
+
+    start: Point
+    end: Point
+    hold_ms: int
+    steps: int
+    step_ms: int
+
+    def __post_init__(self) -> None:
+        if self.hold_ms < 0 or self.step_ms < 0:
+            raise ValueError(f"hold_ms と step_ms は0以上: {self.hold_ms}, {self.step_ms}")
+        if self.steps < 1:
+            raise ValueError(f"steps は1以上: {self.steps}")
+
+
+@dataclass(frozen=True)
 class KeyPress:
     key: str  # 例: "e", "enter"。Androidでは使わない
 
 
-InputAction = Tap | Drag | KeyPress
+InputAction = Tap | Drag | HoldDrag | KeyPress
 
 
 def action_to_dict(action: InputAction) -> dict[str, Any]:
@@ -91,6 +111,15 @@ def action_to_dict(action: InputAction) -> dict[str, Any]:
                 "end": {"x": end.x, "y": end.y},
                 "duration_ms": duration_ms,
             }
+        case HoldDrag(start=start, end=end, hold_ms=hold_ms, steps=steps, step_ms=step_ms):
+            return {
+                "type": "HoldDrag",
+                "start": {"x": start.x, "y": start.y},
+                "end": {"x": end.x, "y": end.y},
+                "hold_ms": hold_ms,
+                "steps": steps,
+                "step_ms": step_ms,
+            }
         case KeyPress(key=key):
             return {"type": "KeyPress", "key": key}
 
@@ -103,6 +132,15 @@ def action_from_dict(data: dict[str, Any]) -> InputAction:
     if kind == "Drag":
         s, e = data["start"], data["end"]
         return Drag(Point(s["x"], s["y"]), Point(e["x"], e["y"]), data["duration_ms"])
+    if kind == "HoldDrag":
+        s, e = data["start"], data["end"]
+        return HoldDrag(
+            Point(s["x"], s["y"]),
+            Point(e["x"], e["y"]),
+            data["hold_ms"],
+            data["steps"],
+            data["step_ms"],
+        )
     if kind == "KeyPress":
         return KeyPress(data["key"])
     raise ValueError(f"未知の入力の種類: {kind!r}")

@@ -3,17 +3,13 @@
 自分の色は黒(CPU戦で、先手の白と対局する)。設定の既定は config/hive.toml。
 """
 
-from typing import Any
-
-import numpy as np
-from numpy.typing import NDArray
-
-from bglm.core.models import Frame, Recognition, VlmProfile
+from bglm.core.models import VlmProfile
 from bglm.plugins.hive.logic.models import Color, HiveMove, HiveState
 from bglm.plugins.hive.logic.rules import HiveRules
 from bglm.plugins.hive.logic.strategy import HiveStrategy
 from bglm.plugins.hive.vision.executor import HiveExecutor
 from bglm.plugins.hive.vision.recognizer import HiveRecognizer
+from bglm.plugins.hive.vision.wide import WideBoardRecognizer
 
 ME = Color.BLACK
 
@@ -21,8 +17,8 @@ ME = Color.BLACK
 class HivePlugin:
     name = "hive"
 
-    def recognizer(self) -> "HiveDebugRecognizer":
-        return HiveDebugRecognizer(HiveRecognizer(ME))
+    def recognizer(self) -> WideBoardRecognizer:
+        return WideBoardRecognizer(HiveRecognizer(ME))
 
     def rules(self) -> HiveRules:
         return HiveRules()
@@ -35,19 +31,6 @@ class HivePlugin:
 
     def vlm_profile(self) -> VlmProfile | None:
         return None  # VLM は使わない(盤面は色と形で読む)
-
-
-class HiveDebugRecognizer:
-    """認識器の入れ物。重ね描きは未実装のため、取得画像をそのまま返す。"""
-
-    def __init__(self, inner: HiveRecognizer) -> None:
-        self._inner = inner
-
-    def observe(self, io: Any, previous: HiveState | None) -> Recognition[HiveState]:
-        return self._inner.observe(io, previous)
-
-    def debug_overlay(self, frame: Frame, result: Recognition[HiveState]) -> NDArray[np.uint8]:
-        return frame.image.copy()
 
 
 def create_plugin() -> HivePlugin:

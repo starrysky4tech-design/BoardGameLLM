@@ -1,0 +1,15 @@
+{
+  "_source": "実機(2026-11-11)の「巡回カード」画面。新規ゲーム(普通、スパイ支援/工場破壊)のターン1の開始直後に、山札を横へ送って読んだ(datasets/raw/maquis/feasibility/g_deck_00〜08.png)。各カードの3地点は、①②③の順(画面の並び)。**ここに書いた並びは画面の表示順で、実際に引かれる順とは一致しない**(最初の巡回がポン・レヴェックに出たが、一覧の先頭は無線A)。山札を『残りの多重集合』として扱う。他の難易度・任務で内訳が変わるかは未確認",
+  "cards": [
+    ["radio_a", "parade_street", "grocer"],
+    ["black_market_fence", "parade_street", "slums"],
+    ["pont_leveque", "black_market", "doctor"],
+    ["grocer", "pont_du_nord", "black_market_fence"],
+    ["radio_a", "pont_leveque", "black_market"],
+    ["radio_b", "grocer", "black_market"],
+    ["grocer", "slums", "doctor"],
+    ["pont_leveque", "pont_du_nord", "doctor"],
+    ["black_market_fence", "pont_du_nord", "pont_leveque"],
+    ["radio_b", "parade_street", "pont_leveque"]
+  ]
+}

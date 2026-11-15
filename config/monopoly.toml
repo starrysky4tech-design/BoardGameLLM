@@ -1,0 +1,17 @@
+# Monopoly の実行設定(Android端末 SHG11、Very Easy 対 AI)。値の根拠は各行のコメント。
+game = "monopoly"
+
+[target]
+kind = "android"
+serial = "355092380222016"  # adb は必ずこのシリアルを付けて呼ぶ(CLAUDE.md)
+input_space = "display"
+
+[runner]
+# 数字の一致度の閾値。局 A〜F の評価で、誤読 0 を保てた下限(0.75)。RESULT.md(計画1)
+confidence_threshold = 0.75
+# 画面が変わるまでの待ち。ダイス・カメラの動きが落ち着く時間(実機: ロール後の表示まで約 9 秒)
+wait_poll_sec = 2.0
+wait_limit_sec = 60.0
+# 操作しても画面が変わらない回数の上限(既定の 2 = 1 回だけやり直す)
+unchanged_limit = 2
+step_limit = 500  # (仮) 1 局の手数の上限。対局が長引いたときの停止

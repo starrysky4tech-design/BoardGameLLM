@@ -10,6 +10,7 @@ from bglm.plugins.hive.logic.models import Color, HexCoord, Kind, Move
 from bglm.plugins.hive.logic.rules import HiveRules
 from bglm.plugins.hive.vision.executor import HiveExecutor, _geometry
 from bglm.plugins.hive.vision.grid import find_tiles, pixel_of
+from bglm.plugins.hive.vision.wide import WideView
 
 RULES = HiveRules()
 ORIGIN = (540.0, 1200.0)  # tests.plugins.hive.support.render.render と同じ
@@ -30,7 +31,8 @@ class FakeIo:
         return Frame(image=self.image, width=w, height=h, captured_at=datetime.now())  # type: ignore[arg-type]
 
     def perform(self, action: object) -> None:
-        assert isinstance(action, Tap)
+        if not isinstance(action, Tap):
+            return  # 寄せる操作(ドラッグ)は、画面を変えない(模擬の画面は1枚)
         self.taps.append(action.at)
         if len(self.taps) == self._switch_after:
             self.image = self._after
@@ -50,7 +52,7 @@ def test_geometry_maps_state_coordinates_to_the_drawn_pixels() -> None:
         [(0, 0, W, Kind.QUEEN), (1, 0, B, Kind.ANT), (1, -1, W, Kind.SPIDER)], to_move=B, turn=3
     )
     image = render(tops_of(s))
-    geo = _geometry(image, s)
+    geo = _geometry(WideView(tiles=find_tiles(image), centre=image), s)
     assert geo is not None
     offset, origin = geo
     centres = [(t.x, t.y) for t in find_tiles(image)]

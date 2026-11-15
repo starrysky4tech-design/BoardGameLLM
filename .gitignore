@@ -11,3 +11,5 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 .coverage
+# 端末のシリアルを直書きした作業用(正式なコードではない)
+scratchpad_*

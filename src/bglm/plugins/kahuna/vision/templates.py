@@ -13,6 +13,7 @@ from numpy.typing import NDArray
 
 from bglm.core.errors import ConfigError
 from bglm.plugins.kahuna.logic.models import BoardDef, Player, default_board
+from bglm.toolkit.images import load_image
 
 DEFAULT_DIR = Path(__file__).resolve().parents[5] / "assets" / "kahuna" / "templates"
 DIGIT_CONTEXTS = ("deck", "score", "round")
@@ -20,10 +21,10 @@ DIALOG_NAMES = ("continue", "next", "winner_me", "winner_draw")
 
 
 def _read(path: Path, flags: int) -> NDArray[np.uint8]:
-    image = cv2.imdecode(np.fromfile(path, dtype=np.uint8), flags)
+    image = load_image(path, flags)
     if image is None:
         raise ConfigError(f"テンプレートを読めない: {path}")
-    return np.asarray(image, dtype=np.uint8)
+    return image
 
 
 @dataclass(frozen=True)

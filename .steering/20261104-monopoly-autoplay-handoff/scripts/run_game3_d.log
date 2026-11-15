@@ -1,0 +1,248 @@
+保存から再開: 位置={'self': 37, 'ai': 15} 現金={'self': 173, 'ai': 195}
+    Log 5 件 gap=False 未知=[] 位置={'self': 37, 'ai': 25} 補正=[] 停止=None
+    現金 予測={'self': 173, 'ai': 195} 画面={'self': 173, 'ai': 395} 差=['ai: 予測 195 画面 395(差 +200)']
+    現金を画面に合わせた(片側だけの少額 = 読み落としたカードの受け払いとみなす): {'self': 173, 'ai': 395}
+[0] acted    画面=board_my_turn_roll   roll(結果の表示が割り込んだ) 
+[1] waited   画面=unknown               
+[2] waited   画面=unknown               
+[3] waited   画面=unknown               
+[4] waited   画面=unknown               
+[5] waited   画面=unknown               
+[6] waited   画面=unknown               
+[7] waited   画面=unknown               
+[8] waited   画面=unknown               
+[9] acted    画面=board_my_turn_end    end_turn 
+[10] waited   画面=unknown               
+[11] acted    画面=board_my_turn_roll   roll(結果の表示が割り込んだ) 
+[12] acted    画面=buy_dialog           pass Oriental Avenue 
+[13] acted    画面=auction              forfeit Oriental Avenue 
+[14] acted    画面=board_my_turn_end    end_turn 
+    Log 8 件 gap=False 未知=[] 位置={'self': 6, 'ai': 29} 補正=['self: 計算 1(Mediterranean Avenue) と Log の Oriental Avenue が違う'] 停止=None
+    現金 予測={'self': 373, 'ai': 340} 画面={'self': 393, 'ai': 340} 差=['self: 予測 373 画面 393(差 +20)']
+    再同期(1/10): 現金の食い違い ['self: 予測 373 画面 393(差 +20)']
+    再同期した: 位置={'self': 6, 'ai': 29} 現金={'self': 393, 'ai': 340} 自分の所有 13
+[15] acted    画面=board_my_turn_roll   roll 7 
+    Log 3 件 gap=False 未知=[] 位置={'self': 13, 'ai': 29} 補正=[] 停止=None
+    現金 予測={'self': 383, 'ai': 350} 画面={'self': 383, 'ai': 350} 差=[]
+[16] acted    画面=board_my_turn_end    end_turn 
+[17] waited   画面=unknown               
+[18] waited   画面=unknown               
+[19] waited   画面=unknown               
+[20] waited   画面=unknown               
+[21] waited   画面=unknown               
+[22] waited   画面=unknown               
+[23] waited   画面=unknown               
+[24] waited   画面=unknown               
+[25] acted    画面=board_my_turn_roll   roll 5 
+    Log 6 件 gap=False 未知=[] 位置={'self': 18, 'ai': 32} 補正=[] 停止=None
+    現金 予測={'self': 369, 'ai': 364} 画面={'self': 369, 'ai': 364} 差=[]
+[26] acted    画面=board_my_turn_end    end_turn 
+    Log 4 件 gap=False 未知=[] 位置={'self': 18, 'ai': 28} 補正=['ai: 購入した Water Works(28)に合わせた(計算上 3)'] 停止=None
+    現金 予測={'self': 369, 'ai': 414} 画面={'self': 369, 'ai': 214} 差=['ai: 予測 414 画面 214(差 -200)']
+    再同期(2/10): 現金の食い違い ['ai: 予測 414 画面 214(差 -200)']
+    再同期した: 位置={'self': 18, 'ai': 28} 現金={'self': 369, 'ai': 214} 自分の所有 13
+[27] acted    画面=board_my_turn_roll   roll 8 
+    Log 3 件 gap=False 未知=[] 位置={'self': 26, 'ai': 28} 補正=[] 停止=None
+    現金 予測={'self': 347, 'ai': 236} 画面={'self': 347, 'ai': 236} 差=[]
+[28] acted    画面=board_my_turn_end    end_turn 
+[29] acted    画面=trade                decline trade(counter: 相手だけが揃う(['green'])。1 枚 : 複数枚(+ お金)で交渉 対案=Trade(proposer_deeds=frozenset({'North Carolina Avenue'}), proposer_cash=0, partner_deeds=frozenset({'Atlantic Avenue', 'Ventnor Avenue', 'Pennsylvania Avenue'}), partner_cash=110)) 
+[30] acted    画面=board_my_turn_roll   roll 11 
+    Log 7 件 gap=False 未知=[] 位置={'self': 37, 'ai': 39} 補正=[] 停止=None
+    現金 予測={'self': 547, 'ai': 36} 画面={'self': 547, 'ai': 36} 差=[]
+[31] acted    画面=board_my_turn_end    end_turn 
+    Log 3 件 gap=False 未知=[] 位置={'self': 37, 'ai': 6} 補正=[] 停止=None
+    現金 予測={'self': 547, 'ai': 236} 画面={'self': 547, 'ai': 236} 差=[]
+[32] acted    画面=board_my_turn_roll   roll 4 
+    Log 2 件 gap=False 未知=[] 位置={'self': 1, 'ai': 6} 補正=[] 停止=None
+    現金 予測={'self': 747, 'ai': 236} 画面={'self': 747, 'ai': 236} 差=[]
+[33] acted    画面=board_my_turn_end    end_turn 
+    Log 3 件 gap=False 未知=[] 位置={'self': 1, 'ai': 15} 補正=[] 停止=None
+    現金 予測={'self': 747, 'ai': 236} 画面={'self': 747, 'ai': 236} 差=[]
+[34] acted    画面=board_my_turn_roll   build red {'Illinois Avenue': 1, 'Indiana Avenue': 2} 
+    Log 0 件 gap=False 未知=[] 位置={'self': 1, 'ai': 15} 補正=[] 停止=None
+    現金 予測={'self': 747, 'ai': 236} 画面={'self': 147, 'ai': 236} 差=['self: 予測 747 画面 147(差 -600)']
+    再同期(3/10): 現金の食い違い ['self: 予測 747 画面 147(差 -600)']
+    再同期した: 位置={'self': 1, 'ai': 15} 現金={'self': 147, 'ai': 236} 自分の所有 13
+[35] acted    画面=board_my_turn_roll   roll 10 
+    Log 2 件 gap=False 未知=[] 位置={'self': 11, 'ai': 15} 補正=[] 停止=None
+    現金 予測={'self': 147, 'ai': 236} 画面={'self': 147, 'ai': 236} 差=[]
+[36] acted    画面=board_my_turn_end    end_turn 
+    Log 3 件 gap=False 未知=[] 位置={'self': 11, 'ai': 26} 補正=[] 停止=None
+    現金 予測={'self': 147, 'ai': 236} 画面={'self': 147, 'ai': 236} 差=[]
+[37] acted    画面=board_my_turn_roll   roll(結果の表示が割り込んだ) 
+[38] waited   画面=unknown               
+[39] waited   画面=unknown               
+[40] waited   画面=unknown               
+[41] waited   画面=unknown               
+[42] waited   画面=unknown               
+[43] waited   画面=unknown               
+[44] waited   画面=unknown               
+[45] waited   画面=unknown               
+[46] acted    画面=board_my_turn_roll   roll 6 
+    Log 5 件 gap=False 未知=[] 位置={'self': 23, 'ai': 26} 補正=[] 停止=None
+    現金 予測={'self': 347, 'ai': 236} 画面={'self': 347, 'ai': 236} 差=[]
+[47] acted    画面=board_my_turn_end    end_turn 
+    Log 3 件 gap=False 未知=[] 位置={'self': 23, 'ai': 31} 補正=[] 停止=None
+    現金 予測={'self': 347, 'ai': 236} 画面={'self': 347, 'ai': 236} 差=[]
+[48] acted    画面=board_my_turn_roll   roll 2 
+    Log 2 件 gap=False 未知=[] 位置={'self': 25, 'ai': 31} 補正=[] 停止=None
+    現金 予測={'self': 347, 'ai': 236} 画面={'self': 347, 'ai': 236} 差=[]
+[49] acted    画面=board_my_turn_roll   roll(結果の表示が割り込んだ) 
+[50] waited   画面=unknown               
+[51] waited   画面=unknown               
+[52] waited   画面=unknown               
+[53] waited   画面=unknown               
+[54] waited   画面=unknown               
+[55] waited   画面=unknown               
+[56] waited   画面=unknown               
+[57] waited   画面=unknown               
+[58] acted    画面=board_my_turn_end    end_turn 
+[59] waited   画面=unknown               
+[60] acted    画面=trade                decline trade(counter: 相手だけが揃う(['yellow'])。1 枚 : 複数枚(+ お金)で交渉 対案=Trade(proposer_deeds=frozenset({'Marvin Gardens'}), proposer_cash=0, partner_deeds=frozenset({'Atlantic Avenue', 'Pacific Avenue', 'Pennsylvania Avenue'}), partner_cash=110)) 
+[61] acted    画面=board_my_turn_roll   roll 6 
+    Log 12 件 gap=False 未知=[] 位置={'self': 6, 'ai': 6} 補正=['self: 出目の行が無いまま GO(0)に止まった(カードの移動とみなした。計算上 36)'] 停止=None
+    現金 予測={'self': 611, 'ai': 372} 画面={'self': 611, 'ai': 372} 差=[]
+[62] acted    画面=board_my_turn_roll   roll 4 
+    Log 2 件 gap=False 未知=[] 位置={'self': 10, 'ai': 6} 補正=[] 停止=None
+    現金 予測={'self': 611, 'ai': 372} 画面={'self': 611, 'ai': 372} 差=[]
+[63] acted    画面=board_my_turn_roll   roll 7 
+    Log 5 件 gap=False 未知=[] 位置={'self': 10, 'ai': 13} 補正=[] 停止=None
+    現金 予測={'self': 611, 'ai': 372} 画面={'self': 611, 'ai': 372} 差=[]
+[64] acted    画面=board_my_turn_roll   post_bail 
+    Log 1 件 gap=False 未知=[] 位置={'self': 10, 'ai': 13} 補正=[] 停止=None
+    現金 予測={'self': 561, 'ai': 372} 画面={'self': 561, 'ai': 372} 差=[]
+[65] acted    画面=board_my_turn_roll   roll 8 
+    Log 3 件 gap=False 未知=[] 位置={'self': 18, 'ai': 13} 補正=[] 停止=None
+    現金 予測={'self': 547, 'ai': 386} 画面={'self': 547, 'ai': None} 差=[]
+[66] acted    画面=board_my_turn_end    end_turn 
+    Log 4 件 gap=False 未知=[] 位置={'self': 18, 'ai': 23} 補正=[] 停止=None
+    現金 予測={'self': 797, 'ai': 136} 画面={'self': 797, 'ai': 136} 差=[]
+[67] acted    画面=board_my_turn_roll   roll 7 
+    Log 2 件 gap=False 未知=[] 位置={'self': 24, 'ai': 23} 補正=[] 停止=None
+    現金 予測={'self': 797, 'ai': 136} 画面={'self': 797, 'ai': 136} 差=[]
+[68] acted    画面=board_my_turn_end    end_turn 
+[69] waited   画面=unknown               
+[70] waited   画面=unknown               
+[71] waited   画面=unknown               
+[72] waited   画面=unknown               
+[73] waited   画面=unknown               
+[74] waited   画面=unknown               
+[75] waited   画面=unknown               
+[76] waited   画面=unknown               
+[77] acted    画面=board_my_turn_roll   roll 4 
+    Log 6 件 gap=False 未知=[] 位置={'self': 28, 'ai': 33} 補正=[] 停止=None
+    現金 予測={'self': 781, 'ai': 152} 画面={'self': 781, 'ai': 152} 差=[]
+[78] acted    画面=board_my_turn_end    end_turn 
+    Log 3 件 gap=False 未知=[] 位置={'self': 28, 'ai': 3} 補正=[] 停止=None
+    現金 予測={'self': 781, 'ai': 352} 画面={'self': 781, 'ai': 352} 差=[]
+[79] acted    画面=board_my_turn_roll   roll 4 
+    Log 2 件 gap=False 未知=[] 位置={'self': 32, 'ai': 3} 補正=[] 停止=None
+    現金 予測={'self': 781, 'ai': 352} 画面={'self': 781, 'ai': 352} 差=[]
+[80] acted    画面=board_my_turn_end    end_turn 
+[81] acted    画面=trade                decline trade(counter: 相手だけが揃う(['green'])。1 枚 : 複数枚(+ お金)で交渉 対案=Trade(proposer_deeds=frozenset({'North Carolina Avenue'}), proposer_cash=0, partner_deeds=frozenset({'Atlantic Avenue', 'Ventnor Avenue', 'Pennsylvania Avenue'}), partner_cash=170)) 
+[82] acted    画面=board_my_turn_roll   roll(結果の表示が割り込んだ) 
+[83] waited   画面=unknown               
+[84] waited   画面=unknown               
+[85] waited   画面=unknown               
+[86] waited   画面=unknown               
+[87] waited   画面=unknown               
+[88] waited   画面=unknown               
+[89] waited   画面=unknown               
+[90] waited   画面=unknown               
+[91] acted    画面=board_my_turn_roll   roll 8 
+    補った: CommunityChest: self の受け取り 10 を相手の支払いとして補った
+    Log 10 件 gap=False 未知=[] 位置={'self': 10, 'ai': 11} 補正=[] 停止=None
+    現金 予測={'self': 991, 'ai': 342} 画面={'self': 991, 'ai': 342} 差=[]
+[92] acted    画面=board_my_turn_end    end_turn 
+    Log 3 件 gap=False 未知=[] 位置={'self': 10, 'ai': 19} 補正=[] 停止=None
+    現金 予測={'self': 991, 'ai': 342} 画面={'self': 991, 'ai': 342} 差=[]
+[93] acted    画面=board_my_turn_roll   build red {'Illinois Avenue': 1, 'Indiana Avenue': 1, 'Kentucky Avenue': 1} 
+    Log 0 件 gap=False 未知=[] 位置={'self': 10, 'ai': 19} 補正=[] 停止=None
+    現金 予測={'self': 541, 'ai': 342} 画面={'self': 541, 'ai': 342} 差=[]
+[94] acted    画面=board_my_turn_roll   roll 9 
+    Log 3 件 gap=False 未知=[] 位置={'self': 19, 'ai': 19} 補正=[] 停止=None
+    現金 予測={'self': 525, 'ai': 358} 画面={'self': 525, 'ai': 358} 差=[]
+[95] acted    画面=board_my_turn_end    end_turn 
+    Log 4 件 gap=False 未知=[] 位置={'self': 19, 'ai': 25} 補正=[] 停止=None
+    現金 予測={'self': 575, 'ai': 308} 画面={'self': 575, 'ai': None} 差=[]
+[96] acted    画面=board_my_turn_roll   roll(結果の表示が割り込んだ) 
+[97] waited   画面=unknown               
+[98] waited   画面=unknown               
+[99] waited   画面=unknown               
+[100] waited   画面=unknown               
+[101] waited   画面=unknown               
+[102] waited   画面=unknown               
+[103] waited   画面=unknown               
+[104] waited   画面=unknown               
+[105] acted    画面=board_my_turn_end    end_turn 
+    Log 7 件 gap=False 未知=[] 位置={'self': 28, 'ai': 31} 補正=['self: 出目の行が無いまま Water Works(28)に止まった(カードの移動とみなした。計算上 22)'] 停止=None
+    現金 予測={'self': 545, 'ai': 338} 画面={'self': 545, 'ai': 338} 差=[]
+[106] acted    画面=board_my_turn_roll   build dark_blue {'Park Place': 1} 
+    Log 0 件 gap=False 未知=[] 位置={'self': 28, 'ai': 31} 補正=[] 停止=None
+    現金 予測={'self': 345, 'ai': 338} 画面={'self': 345, 'ai': 338} 差=[]
+[107] acted    画面=board_my_turn_roll   roll(結果の表示が割り込んだ) 
+[108] waited   画面=unknown               
+[109] waited   画面=unknown               
+[110] waited   画面=unknown               
+[111] waited   画面=unknown               
+[112] waited   画面=unknown               
+[113] waited   画面=unknown               
+[114] waited   画面=unknown               
+[115] waited   画面=unknown               
+[116] acted    画面=board_my_turn_end    end_turn 
+    Log 7 件 gap=False 未知=[] 位置={'self': 0, 'ai': 38} 補正=['self: 出目の行が無いまま GO(0)に止まった(カードの移動とみなした。計算上 33)'] 停止=None
+    現金 予測={'self': 545, 'ai': 238} 画面={'self': 545, 'ai': 238} 差=[]
+[117] acted    画面=board_my_turn_roll   roll 5 
+    Log 2 件 gap=False 未知=[] 位置={'self': 5, 'ai': 38} 補正=[] 停止=None
+    現金 予測={'self': 545, 'ai': 238} 画面={'self': 545, 'ai': 238} 差=[]
+[118] acted    画面=board_my_turn_end    end_turn 
+[119] acted    画面=trade                decline trade(counter: 相手だけが揃う(['yellow'])。1 枚 : 複数枚(+ お金)で交渉 対案=Trade(proposer_deeds=frozenset({'Marvin Gardens'}), proposer_cash=0, partner_deeds=frozenset({'Atlantic Avenue', 'Pacific Avenue', 'Pennsylvania Avenue'}), partner_cash=110)) 
+[120] acted    画面=board_my_turn_roll   roll(結果の表示が割り込んだ) 
+[121] acted    画面=zoomed_board         return_from_zoom 
+[122] acted    画面=board_my_turn_end    end_turn 
+    Log 10 件 gap=False 未知=[] 位置={'self': 10, 'ai': 14} 補正=[] 停止=None
+    現金 予測={'self': 595, 'ai': 388} 画面={'self': 595, 'ai': None} 差=[]
+[123] acted    画面=board_my_turn_roll   roll(結果の表示が割り込んだ) 
+[124] waited   画面=unknown               
+[125] waited   画面=unknown               
+[126] waited   画面=unknown               
+[127] waited   画面=unknown               
+[128] waited   画面=unknown               
+[129] waited   画面=unknown               
+[130] waited   画面=unknown               
+[131] waited   画面=unknown               
+[132] acted    画面=board_my_turn_roll   roll 9 
+    Log 6 件 gap=False 未知=[] 位置={'self': 31, 'ai': 14} 補正=[] 停止=None
+    現金 予測={'self': 294, 'ai': 414} 画面={'self': 294, 'ai': 414} 差=[]
+[133] acted    画面=board_my_turn_end    end_turn 
+    Log 7 件 gap=False 未知=[] 位置={'self': 31, 'ai': 23} 補正=[] 停止=None
+    現金 予測={'self': 994, 'ai': 34} 画面={'self': 994, 'ai': 34} 差=[]
+[134] acted    画面=board_my_turn_roll   roll 8 
+    Log 2 件 gap=False 未知=[] 位置={'self': 39, 'ai': 23} 補正=[] 停止=None
+    現金 予測={'self': 994, 'ai': 34} 画面={'self': 994, 'ai': 34} 差=[]
+[135] acted    画面=board_my_turn_end    end_turn 
+    Log 3 件 gap=False 未知=[] 位置={'self': 39, 'ai': 27} 補正=[] 停止=None
+    現金 予測={'self': 994, 'ai': 34} 画面={'self': 994, 'ai': 34} 差=[]
+[136] acted    画面=board_my_turn_roll   roll 4 
+    Log 3 件 gap=False 未知=[] 位置={'self': 3, 'ai': 27} 補正=[] 停止=None
+    現金 予測={'self': 1190, 'ai': 38} 画面={'self': 1190, 'ai': None} 差=[]
+[137] acted    画面=board_my_turn_end    end_turn 
+[138] waited   画面=unknown               
+[139] waited   画面=unknown               
+[140] waited   画面=unknown               
+[141] waited   画面=unknown               
+[142] waited   画面=unknown               
+[143] waited   画面=unknown               
+[144] waited   画面=unknown               
+[145] waited   画面=unknown               
+[146] acted    画面=board_my_turn_roll   roll 7 
+    Log 7 件 gap=False 未知=[] 位置={'self': 10, 'ai': 33} 補正=[] 停止=None
+    現金 予測={'self': 1190, 'ai': 68} 画面={'self': 1190, 'ai': 68} 差=[]
+[147] acted    画面=board_my_turn_end    end_turn 
+[148] acted    画面=trade                decline trade(decline: 双方が揃うが、自分の評価が高くない(1.25 <= 0.98)) 
+[149] acted    画面=board_my_turn_roll   build dark_blue {'Boardwalk': 2, 'Park Place': 2} 
+    Log 6 件 gap=False 未知=[] 位置={'self': 10, 'ai': 38} 補正=[] 停止=None
+    現金 予測={'self': 1190, 'ai': 38} 画面={'self': 390, 'ai': None} 差=['self: 予測 1190 画面 390(差 -800)']
+    再同期(4/10): 現金の食い違い ['self: 予測 1190 画面 390(差 -800)']
+    再同期した: 位置={'self': 10, 'ai': 38} 現金={'self': 390, 'ai': 68} 自分の所有 13
+[150] acted    画面=board_my_turn_roll   roll 9 

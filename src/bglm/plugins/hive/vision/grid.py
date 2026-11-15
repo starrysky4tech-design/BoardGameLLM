@@ -14,6 +14,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from bglm.plugins.hive.logic.models import Color, HexCoord
+from bglm.toolkit.components import component_mask, connected_components
 
 TILE_R = 77.3  # マスの外接円の半径(画素)。実画面で最小二乗から求めた値(幅 2R≈155、高さ √3R≈134)
 TILE_H = math.sqrt(3) * TILE_R
@@ -70,13 +71,12 @@ def _fill_holes(mask: NDArray[np.uint8]) -> NDArray[np.uint8]:
     cv2.drawContours(outer, contours, -1, 1, -1)
     holes = ((outer == 1) & (mask == 0)).astype(np.uint8)
     result = mask.copy()
-    count, labels, stats, _ = cv2.connectedComponentsWithStats(holes, connectivity=8)
-    for i in range(1, count):
-        x0, y0, w, h, _ = (int(v) for v in stats[i])
-        comp = (labels[y0 : y0 + h, x0 : x0 + w] == i).astype(np.uint8)
+    components, labels = connected_components(holes)
+    for c in components:
+        comp = component_mask(labels, c)
         thickness = cv2.distanceTransform(comp, cv2.DIST_L2, 5).max()
         if thickness >= GLYPH_HOLE_MIN_THICKNESS:
-            result[y0 : y0 + h, x0 : x0 + w][comp == 1] = 1
+            result[c.y : c.y + c.height, c.x : c.x + c.width][comp == 1] = 1
     return result
 
 
@@ -90,7 +90,7 @@ GLYPH_RADIUS = 0.85  # 絵を取る範囲: マス半径に対する比(輪郭を
 
 LATTICE_FRACTION = 0.3  # 格子点の中心の周りで、地の色が占める割合の下限(駒がある)
 LATTICE_RADIUS = 45  # 格子点の判定の円(画素)。マスの内側だけを見る
-ANCHOR_TOLERANCE = 8.0  # 白のマスの中心が格子点からこれ以上ずれたら、格子が合っていないとみなす
+ANCHOR_TOLERANCE = 12.0  # 白のマスの中心が格子点からこれ以上ずれたら、格子が合っていないとみなす(直前の手の緑の枠で約12px ずれる)
 
 
 def find_tiles(
@@ -106,12 +106,13 @@ def find_tiles(
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
     hue, sat, val = (hsv[:, :, i].astype(np.uint8) for i in range(3))
     cream, dark = ground_masks(image, top, bottom)
-    anchors = _white_centres(cream)
+    anchors = _seed_centres(cream)  # 白系の地のマス(格子の基準)
     if not anchors:
         return _fallback_tiles(image, top, bottom, hue, sat, val)
     # 基準は、面積が中央値に近い白のマス(欠けや重なりで大きさが崩れたものを避ける)
     median_area = float(np.median([a for _, _, a in anchors]))
     ax, ay, _ = min(anchors, key=lambda t: abs(t[2] - median_area))
+    sx, sy = _fit_spacing(anchors, ax, ay)
     disk = _disk(LATTICE_RADIUS)
     frac_c = cv2.filter2D(cream.astype(np.float32), -1, disk, borderType=cv2.BORDER_CONSTANT)
     frac_d = cv2.filter2D(dark.astype(np.float32), -1, disk, borderType=cv2.BORDER_CONSTANT)
@@ -120,8 +121,8 @@ def find_tiles(
     tiles: list[Tile] = []
     for q in range(-16, 17):
         for r in range(-16, 17):
-            cx = ax + 1.5 * TILE_R * q
-            cy = ay + TILE_H * (r + q / 2)
+            cx = ax + sx * q
+            cy = ay + sy * (r + q / 2)
             lattice.append((cx, cy))
             # 中心の円が盤の範囲に収まる点だけを見る(盤の端の手持ちの列を数えないため)
             if not (
@@ -150,6 +151,43 @@ def find_tiles(
     return tiles
 
 
+def _fit_spacing(
+    anchors: list[tuple[float, float, int]], ax: float, ay: float
+) -> tuple[float, float]:
+    """白のマスの位置から、格子の間隔を最小二乗で求める(公称の 1.5R、√3R からのずれを吸収する)。"""
+    qs, halves, dxs, dys = [], [], [], []
+    for x, y, _ in anchors:
+        dx, dy = x - ax, y - ay
+        q = round(dx / (1.5 * TILE_R))
+        r = round(dy / TILE_H - q / 2)
+        qs.append(q)
+        halves.append(r + q / 2)
+        dxs.append(dx)
+        dys.append(dy)
+    return _lattice_spacing(
+        np.array(dxs), np.array(dys), np.array(qs, float), np.array(halves, float)
+    )
+
+
+def _lattice_spacing(
+    dxs: NDArray[np.float64],
+    dys: NDArray[np.float64],
+    qs: NDArray[np.float64],
+    halves: NDArray[np.float64],
+) -> tuple[float, float]:
+    """格子の間隔(横, 縦)の最小二乗。dx ≈ 横 × q、dy ≈ 縦 × (r + q/2)。
+
+    整数の位置が 1 列(1 行)しか無く決まらない向きは、公称の間隔(1.5R、√3R)にする。
+    """
+    spacing_x = float((dxs * qs).sum() / (qs * qs).sum()) if (qs * qs).sum() > 0 else 1.5 * TILE_R
+    spacing_y = (
+        float((dys * halves).sum() / (halves * halves).sum())
+        if (halves * halves).sum() > 0
+        else TILE_H
+    )
+    return spacing_x, spacing_y
+
+
 def _disk(radius: int) -> NDArray[np.float32]:
     size = 2 * radius + 1
     yy, xx = np.mgrid[0:size, 0:size]
@@ -157,17 +195,17 @@ def _disk(radius: int) -> NDArray[np.float32]:
     return np.asarray(d / d.sum(), dtype=np.float32)
 
 
-def _white_centres(mask: NDArray[np.uint8]) -> list[tuple[float, float, int]]:
-    """白系の地のマスの中心(侵食で隣と切り離した連結成分の重心)。"""
-    eroded = cv2.erode(mask, np.ones((ERODE_PX, ERODE_PX), np.uint8))
-    count, labels, stats, _ = cv2.connectedComponentsWithStats(eroded, connectivity=8)
+def _seed_centres(mask: NDArray[np.uint8]) -> list[tuple[float, float, int]]:
+    """マスの中心の候補(侵食で隣と切り離した連結成分のうち、マス1つ分の面積のものの重心と面積)。"""
+    eroded = np.asarray(cv2.erode(mask, np.ones((ERODE_PX, ERODE_PX), np.uint8)), dtype=np.uint8)
+    components, labels = connected_components(eroded)
     out: list[tuple[float, float, int]] = []
-    for i in range(1, count):
-        x0, y0, w, h, area = (int(v) for v in stats[i])
-        if not TILE_SEED_MIN_AREA <= area <= TILE_SEED_MAX_AREA:
+    for c in components:
+        if not TILE_SEED_MIN_AREA <= c.area <= TILE_SEED_MAX_AREA:
             continue
-        ys, xs = np.nonzero(labels[y0 : y0 + h, x0 : x0 + w] == i)
-        out.append((x0 + float(xs.mean()), y0 + float(ys.mean()), area))
+        # 重心は画素の座標の平均(OpenCV の重心と丸めが違い得るので、従来の求め方を保つ)
+        ys, xs = np.nonzero(component_mask(labels, c))
+        out.append((c.x + float(xs.mean()), c.y + float(ys.mean()), c.area))
     return out
 
 
@@ -180,19 +218,11 @@ def _fallback_tiles(
     val: NDArray[np.uint8],
 ) -> list[Tile]:
     """白のマスが見えないときの従来の方法(白と黒の両方を侵食で切り離して数える)。"""
-    kernel = np.ones((ERODE_PX, ERODE_PX), np.uint8)
     tiles: list[Tile] = []
     for mask, side in zip(
         ground_masks(image, top, bottom), (Color.WHITE, Color.BLACK), strict=True
     ):
-        eroded = cv2.erode(mask, kernel)
-        count, labels, stats, _ = cv2.connectedComponentsWithStats(eroded, connectivity=8)
-        for i in range(1, count):
-            x0, y0, w, h, area = (int(v) for v in stats[i])
-            if not TILE_SEED_MIN_AREA <= area <= TILE_SEED_MAX_AREA:
-                continue
-            ys, xs = np.nonzero(labels[y0 : y0 + h, x0 : x0 + w] == i)
-            cx, cy = x0 + float(xs.mean()), y0 + float(ys.mean())
+        for cx, cy, area in _seed_centres(mask):
             tiles.append(
                 Tile(
                     x=cx, y=cy, side=side, area=area, glyph_hsv=_glyph_pixels(hue, sat, val, cx, cy)
@@ -264,10 +294,7 @@ def to_axial(tiles: Sequence[Tile]) -> dict[HexCoord, Tile] | None:
     half = np.array([r + q / 2 for q, r, _ in cells], dtype=float)
     dxs = np.array([t.x - origin.x for _, _, t in cells])
     dys = np.array([t.y - origin.y for _, _, t in cells])
-    spacing_x = float((dxs * qs).sum() / (qs * qs).sum()) if (qs * qs).sum() > 0 else 1.5 * TILE_R
-    spacing_y = (
-        float((dys * half).sum() / (half * half).sum()) if (half * half).sum() > 0 else TILE_H
-    )
+    spacing_x, spacing_y = _lattice_spacing(dxs, dys, qs, half)
     resid = np.maximum(np.abs(dxs - spacing_x * qs), np.abs(dys - spacing_y * half))
     if float(resid.max()) > FIT_TOLERANCE:
         return None

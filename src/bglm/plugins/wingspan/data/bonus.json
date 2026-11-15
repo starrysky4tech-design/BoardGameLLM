@@ -1,0 +1,10 @@
+{
+  "_comment": "ボーナスカードの表。数え方(criterion)は付録 A p.4〜5 の分類。点は札ごとに違うので、画像で人が確かめた分だけ入れる(出典: source)。tiers は [下限, 上限, 点]、per_item は 1 つにつき n 点。表に無いボーナスは 0 点として扱う(推測しない)。",
+  "bonus": [
+    {
+      "name": "草原管理者", "criterion": "habitat_only", "arg": "grassland",
+      "per_item": 0, "tiers": [[2, 3, 3], [4, 99, 8]],
+      "source": "038_icon_b.png"
+    }
+  ]
+}

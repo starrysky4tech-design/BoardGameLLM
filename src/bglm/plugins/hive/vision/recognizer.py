@@ -10,11 +10,10 @@
 
 from dataclasses import dataclass
 
-import cv2
 import numpy as np
 from numpy.typing import NDArray
 
-from bglm.core.models import Frame, Recognition, UiKind, UiState
+from bglm.core.models import Recognition, UiKind, UiState
 from bglm.core.protocols import GameIo
 from bglm.plugins.hive.logic.models import Color, HexCoord, HiveState, Piece, initial_state
 from bglm.plugins.hive.logic.rules import HiveRules
@@ -29,10 +28,18 @@ from bglm.plugins.hive.vision.grid import (
 )
 from bglm.plugins.hive.vision.pieces import classify
 from bglm.plugins.hive.vision.screens import ScreenKind, screen_of
+from bglm.toolkit.components import connected_components
 
 ELEMENT_MIN = 0.5  # 要素の確信度がこれ未満なら採用しない
 FOLLOW_PLIES = 2  # 直前の状態から観測の盤まで進める手数の上限(自分の手と、その後の相手の応手)
 HIDDEN_GROUND_MAX = 2000  # マスで覆われていない地の画素の上限(隠れた駒の地が見えたとみなす)
+
+
+@dataclass(frozen=True)
+class BoardReading:
+    tops: dict[HexCoord, Piece]  # 見えている一番上の駒(画面の座標。(0,0) は左上のマス)
+    confidence: float
+    problems: tuple[str, ...]
 
 
 class HiveRecognizer:
@@ -41,13 +48,18 @@ class HiveRecognizer:
         self._rules = rules or HiveRules()
 
     def observe(self, io: GameIo, previous: HiveState | None) -> Recognition[HiveState]:
-        frame: Frame = io.capture()
-        return self.recognize(frame.image, previous)
+        """1枚の画面を読む。盤が画面より広いときの読み取りは、呼び出し側(プラグイン)が行う。"""
+        return self.recognize(io.capture().image, previous)
 
     def recognize(
         self, image: NDArray[np.uint8], previous: HiveState | None
     ) -> Recognition[HiveState]:
-        reading = read_board(image)
+        return self.recognize_reading(read_board(image), previous)
+
+    def recognize_reading(
+        self, reading: BoardReading, previous: HiveState | None
+    ) -> Recognition[HiveState]:
+        """盤の読み取り(1枚の画面、または継ぎ合わせた全体)から、状態を決める。"""
         screen = screen_of(bool(reading.tops), reading.problems)
         if screen is not ScreenKind.BOARD:
             return _unknown(reading.confidence, (screen.value, *reading.problems))
@@ -66,15 +78,8 @@ class HiveRecognizer:
         return Recognition(ui=ui, state=state, confidence=reading.confidence)
 
 
-@dataclass(frozen=True)
-class BoardReading:
-    tops: dict[HexCoord, Piece]  # 見えている一番上の駒(画面の座標。(0,0) は左上のマス)
-    confidence: float
-    problems: tuple[str, ...]
-
-
-def read_board(image: NDArray[np.uint8]) -> BoardReading:
-    tiles = find_tiles(image)
+def read_tiles(tiles: list[Tile]) -> BoardReading:
+    """マスの一覧から盤を読む(格子への配置と、駒の種類)。隠れた駒の判定は含まない。"""
     if not tiles:
         return BoardReading({}, 0.0, ())
     placed = to_axial(tiles)
@@ -90,9 +95,17 @@ def read_board(image: NDArray[np.uint8]) -> BoardReading:
             problems.append(f"kind@{at.q},{at.r}")
             continue
         tops[at] = Piece(tile.side, reading.kind)
-    if _hidden_ground(image, tiles) > HIDDEN_GROUND_MAX:
-        problems.append("hidden_piece")
     return BoardReading(tops, confidence, tuple(problems))
+
+
+def read_board(image: NDArray[np.uint8]) -> BoardReading:
+    tiles = find_tiles(image)
+    reading = read_tiles(tiles)
+    if not tiles or "grid_mismatch" in reading.problems:
+        return reading
+    if _hidden_ground(image, tiles) > HIDDEN_GROUND_MAX:
+        return BoardReading(reading.tops, reading.confidence, (*reading.problems, "hidden_piece"))
+    return reading
 
 
 def _hidden_ground(image: NDArray[np.uint8], tiles: list[Tile]) -> int:
@@ -103,13 +116,8 @@ def _hidden_ground(image: NDArray[np.uint8], tiles: list[Tile]) -> int:
     cream, dark = ground_masks(image)
     covered = tile_hex_mask(image.shape[:2], tiles)
     left = ((cream | dark) & (1 - covered)).astype(np.uint8)
-    count, labels, stats, _ = cv2.connectedComponentsWithStats(left, connectivity=8)
-    total = 0
-    for i in range(1, count):
-        x0, y0, w, h, area = (int(v) for v in stats[i])
-        if w <= 2 * TILE_R + 10 and h <= 2 * TILE_H:
-            total += area
-    return total
+    components, _ = connected_components(left)
+    return sum(c.area for c in components if c.width <= 2 * TILE_R + 10 and c.height <= 2 * TILE_H)
 
 
 def _shifted(tops: dict[HexCoord, Piece]) -> dict[HexCoord, Piece]:
@@ -121,7 +129,8 @@ def _shifted(tops: dict[HexCoord, Piece]) -> dict[HexCoord, Piece]:
     return {HexCoord(at.q - min_q, at.r - min_r): piece for at, piece in tops.items()}
 
 
-def _tops_of(state: HiveState) -> dict[HexCoord, Piece]:
+def tops_of(state: HiveState) -> dict[HexCoord, Piece]:
+    """状態の、各マスの一番上の駒(状態の座標)。画面で見えるのは一番上の駒だけなので、読み取りとはこれで比べる。"""
     tops: dict[HexCoord, Piece] = {}
     for at in state.occupied():
         top = state.top(at)
@@ -142,7 +151,7 @@ def _follow(
     frontier = [previous]
     for depth in range(FOLLOW_PLIES + 1):
         for state in frontier:
-            if _shifted(_tops_of(state)) == target:
+            if _shifted(tops_of(state)) == target:
                 return state
         if depth == FOLLOW_PLIES:
             break

@@ -35,3 +35,25 @@ def test_self_play_finishes_with_legal_moves_only() -> None:
 def test_initial_state_has_five_kinds_to_place() -> None:
     kinds = {k for (c, k), n in initial_state().hand.items() if c is Color.WHITE and n > 0}
     assert kinds == set(Kind)
+
+
+def test_strategy_prefers_moves_that_keep_the_board_on_screen() -> None:
+    """盤が画面の幅(8列)に収まる手を優先する。収まる手が無ければ、全部から選ぶ。"""
+    from tests.plugins.hive.support.helpers import B, W, state
+
+    from bglm.plugins.hive.logic.strategy import SCREEN_MAX_COLUMNS, fits_screen
+
+    wide = state([(0, 0, W, Kind.QUEEN), (SCREEN_MAX_COLUMNS, 0, B, Kind.QUEEN)], to_move=B, turn=7)
+    narrow = state([(0, 0, W, Kind.QUEEN), (1, 0, B, Kind.QUEEN)], to_move=B, turn=7)
+    assert not fits_screen(state([(0, 0, W, Kind.QUEEN), (SCREEN_MAX_COLUMNS + 1, 0, B, Kind.ANT)]))
+    assert fits_screen(wide) and fits_screen(narrow)
+    # 盤が既に広いとき、さらに広げる手は選ばない
+    s = state(
+        [(0, 0, W, Kind.QUEEN), (SCREEN_MAX_COLUMNS, 0, B, Kind.QUEEN), (3, 0, B, Kind.ANT)],
+        hand={(B, Kind.BEETLE): 1},
+        to_move=B,
+        turn=9,
+    )
+    legal = RULES.legal_moves(s)
+    move = HiveStrategy(rng=random.Random(0), max_depth=1).choose(s, legal, TimeBudget(1e9))
+    assert fits_screen(RULES.apply(s, move))

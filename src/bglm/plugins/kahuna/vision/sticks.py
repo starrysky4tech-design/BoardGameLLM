@@ -12,6 +12,8 @@ from numpy.typing import NDArray
 
 from bglm.core.models import Point
 from bglm.plugins.kahuna.logic.models import BoardDef, Player
+from bglm.toolkit.components import connected_components
+from bglm.toolkit.images import crop
 
 # 盤(島のある範囲)。左の相手の手札と、右の自分の手札を除く(原寸)
 MAP_ROI = (
@@ -38,8 +40,8 @@ class StickBlob:
 
 def find_blobs(image: NDArray[np.uint8]) -> list[StickBlob]:
     """画像から、杖コマらしい長方形を、持ち主つきで全部拾う。"""
-    x0, y0, x1, y1 = MAP_ROI
-    roi = image[y0:y1, x0:x1]
+    x0, y0, _, _ = MAP_ROI
+    roi = crop(image, MAP_ROI)
     masks = {
         Player.ME: (roi.min(axis=2) >= WHITE_MIN),
         Player.OPPONENT: (roi.max(axis=2) <= BLACK_MAX),
@@ -47,13 +49,15 @@ def find_blobs(image: NDArray[np.uint8]) -> list[StickBlob]:
     blobs: list[StickBlob] = []
     kernel = np.ones((3, 3), np.uint8)
     for owner, mask in masks.items():
-        cleaned = cv2.morphologyEx(mask.astype(np.uint8) * 255, cv2.MORPH_OPEN, kernel)
-        count, labels, stats, _ = cv2.connectedComponentsWithStats(cleaned)
-        for i in range(1, count):
-            area = int(stats[i, cv2.CC_STAT_AREA])
+        cleaned = np.asarray(
+            cv2.morphologyEx(mask.astype(np.uint8) * 255, cv2.MORPH_OPEN, kernel), dtype=np.uint8
+        )
+        components, labels = connected_components(cleaned)
+        for c in components:
+            area = c.area
             if not AREA_RANGE[0] <= area <= AREA_RANGE[1]:
                 continue
-            points = np.argwhere(labels == i)[:, ::-1].astype(np.float32)  # (x, y)
+            points = np.argwhere(labels == c.label)[:, ::-1].astype(np.float32)  # (x, y)
             (cx, cy), (w, h), _ = cv2.minAreaRect(points)
             short, long_ = min(w, h), max(w, h)
             if short < 1 or long_ / short < MIN_ASPECT or area / (w * h) < MIN_FILL:

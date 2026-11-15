@@ -13,6 +13,7 @@ dependencies = [
     "pydantic>=2.14.2",
     "pynput>=1.8.2",
     "typer>=0.27.3",
+    "rapidocr-onnxruntime>=1.3,<2",
 ]
 
 [project.scripts]
@@ -39,7 +40,8 @@ packages = ["src/bglm"]
 target-version = "py312"
 line-length = 100
 src = ["src", "tests", "scripts"]
-extend-exclude = ["docs", ".steering"]
+# scratchpad_*.py は、端末のシリアルを直書きした作業用(正式なコードではない)。検査しない
+extend-exclude = ["docs", ".steering", "scratchpad_*.py"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "N", "NPY", "TID251"]
@@ -66,7 +68,7 @@ files = ["src", "scripts"]
 
 [[tool.mypy.overrides]]
 # 型情報(スタブ・py.typed)を持たないライブラリ
-module = ["pydirectinput", "pynput", "pynput.*"]
+module = ["pydirectinput", "pynput", "pynput.*", "rapidocr_onnxruntime"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

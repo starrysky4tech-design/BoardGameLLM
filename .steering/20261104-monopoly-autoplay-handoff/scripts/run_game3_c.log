@@ -1,0 +1,2 @@
+保存から再開: 位置={'self': 37, 'ai': 15} 現金={'self': 173, 'ai': 195}
+[0] stopped  画面=trade                decline trade(counter: 相手だけが揃う(['orange'])。1 枚 : 複数枚(+ お金)で交渉 対案=Trade(proposer_deeds=frozenset({'St. James Place'}), proposer_cash=0, partner_deeds=frozenset({'New York Avenue', 'Pacific Avenue', 'Pennsylvania Avenue'}), partner_cash=90)) 前提の画面と違う(想定 ['trade'])

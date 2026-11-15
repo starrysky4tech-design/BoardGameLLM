@@ -13,6 +13,8 @@ import numpy as np
 from numpy.typing import NDArray
 
 from bglm.core.models import Point
+from bglm.toolkit.images import gray
+from bglm.toolkit.matching import best_match
 
 ANCHOR_BOX = (200, 55, 370, 95)  # 録画の座標(x0, y0, x1, y1)。基準の模様を切り出した位置
 SEARCH_ROWS = 200  # 基準を探す上端の範囲(行)
@@ -33,15 +35,13 @@ class Alignment:
 
 def find_alignment(image: NDArray[np.uint8], anchor: NDArray[np.uint8]) -> Alignment | None:
     """取得画像の中で基準の模様が録画から何画素ずれているかを求める。見つからなければ None。"""
-    gray = np.asarray(cv2.cvtColor(image[:SEARCH_ROWS], cv2.COLOR_BGR2GRAY), dtype=np.uint8)
-    result = cv2.matchTemplate(gray, anchor, cv2.TM_CCOEFF_NORMED)
-    _, best, _, (x, y) = cv2.minMaxLoc(result)
-    if best < MIN_SCORE:
+    match = best_match(gray(image[:SEARCH_ROWS]), anchor)
+    if match.score < MIN_SCORE:
         return None
-    dx, dy = x - ANCHOR_BOX[0], y - ANCHOR_BOX[1]
+    dx, dy = match.x - ANCHOR_BOX[0], match.y - ANCHOR_BOX[1]
     if abs(dx) > MAX_SHIFT or abs(dy) > MAX_SHIFT:
         return None
-    return Alignment(dx, dy, float(best))
+    return Alignment(dx, dy, match.score)
 
 
 def apply_alignment(image: NDArray[np.uint8], alignment: Alignment) -> NDArray[np.uint8]:

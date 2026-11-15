@@ -5,6 +5,7 @@
 """
 
 import subprocess
+import time
 from collections.abc import Callable
 from datetime import datetime
 
@@ -13,8 +14,10 @@ import numpy as np
 
 from bglm.core.config import AndroidTarget
 from bglm.core.errors import ConfigError, InputRejectedError, SourceLostError
-from bglm.core.models import Drag, Frame, InputAction, KeyPress, Tap
+from bglm.core.models import Drag, Frame, HoldDrag, InputAction, KeyPress, Point, Tap
 
+CAPTURE_ATTEMPTS = 3
+CAPTURE_RETRY_SEC = 1.0
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 
 # (引数, タイムアウト秒) を受け取り、結果を返す。テストで差し替える
@@ -23,6 +26,23 @@ Runner = Callable[[list[str], float], "subprocess.CompletedProcess[bytes]"]
 
 def _subprocess_runner(args: list[str], timeout: float) -> "subprocess.CompletedProcess[bytes]":
     return subprocess.run(args, capture_output=True, timeout=timeout, check=False)
+
+
+def hold_drag_script(
+    start: Point, end: Point, hold_ms: int, steps: int, step_ms: int
+) -> tuple[str, ...]:
+    """押下 → 保持 → 段階的に移動 → 離す を、1 回の shell で実行する引数。
+
+    保持と移動の時間を adb の呼び出し間の遅れに左右させないため、1 つの shell にまとめる。
+    """
+    commands = [f"input motionevent DOWN {start.x} {start.y}", f"sleep {hold_ms / 1000:.3f}"]
+    for k in range(1, steps + 1):
+        x = round(start.x + (end.x - start.x) * k / steps)
+        y = round(start.y + (end.y - start.y) * k / steps)
+        commands.append(f"input motionevent MOVE {x} {y}")
+        commands.append(f"sleep {step_ms / 1000:.3f}")
+    commands.append(f"input motionevent UP {end.x} {end.y}")
+    return ("; ".join(commands),)
 
 
 class AdbDevice:
@@ -51,15 +71,33 @@ class AdbDevice:
         if self._serial not in online:
             raise SourceLostError(f"端末 {self._serial} が接続中の端末に無い: {online}")
 
+    def focused_package(self) -> str | None:
+        """前面のウィンドウのパッケージ名。取れなければ None(入力の前に確かめる。計画3・フェーズ3)。"""
+        result = self._call(self._cmd("shell", "dumpsys", "window"))
+        for line in result.stdout.decode(errors="replace").splitlines():
+            if "mCurrentFocus" in line and "/" in line:
+                window = line.split("{", 1)[-1].rstrip("}").split()[-1]
+                return window.split("/", 1)[0]
+        return None
+
     def capture(self) -> Frame:
-        result = self._call(self._cmd("exec-out", "screencap", "-p"))
-        data = result.stdout
-        if not data.startswith(PNG_SIGNATURE):
-            raise SourceLostError(f"画面の取得結果がPNGではない({len(data)}バイト)")
-        image = cv2.imdecode(np.frombuffer(data, dtype=np.uint8), cv2.IMREAD_COLOR)
-        if image is None:
-            raise SourceLostError("画面のPNGを復号できない")
-        return Frame.from_image(np.asarray(image, dtype=np.uint8), self._clock())
+        """画面を取る。一時的な取得の失敗(PNG でない、復号できない)は、数回までやり直す(実機で、まれに起きる)。"""
+        last: SourceLostError | None = None
+        for attempt in range(CAPTURE_ATTEMPTS):
+            if attempt:
+                time.sleep(CAPTURE_RETRY_SEC)
+            result = self._call(self._cmd("exec-out", "screencap", "-p"))
+            data = result.stdout
+            if not data.startswith(PNG_SIGNATURE):
+                last = SourceLostError(f"画面の取得結果がPNGではない({len(data)}バイト)")
+                continue
+            image = cv2.imdecode(np.frombuffer(data, dtype=np.uint8), cv2.IMREAD_COLOR)
+            if image is None:
+                last = SourceLostError("画面のPNGを復号できない")
+                continue
+            return Frame.from_image(np.asarray(image, dtype=np.uint8), self._clock())
+        assert last is not None
+        raise last
 
     def perform(self, action: InputAction) -> None:
         match action:
@@ -77,6 +115,9 @@ class AdbDevice:
                     str(end.y),
                     str(duration_ms),
                 )
+            case HoldDrag(start=start, end=end, hold_ms=hold_ms, steps=steps, step_ms=step_ms):
+                self._require_non_negative(start.x, start.y, end.x, end.y)
+                self._shell(*hold_drag_script(start, end, hold_ms, steps, step_ms))
             case KeyPress():
                 raise InputRejectedError("Androidではキー入力を使わない")
 
@@ -86,13 +127,20 @@ class AdbDevice:
     def _shell(self, *args: str) -> None:
         self._call(self._cmd("shell", *args))
 
-    def _call(self, args: list[str]) -> "subprocess.CompletedProcess[bytes]":
+    def _call(
+        self, args: list[str], _retried: bool = False
+    ) -> "subprocess.CompletedProcess[bytes]":
         try:
             result = self._run(args, self._timeout)
         except (subprocess.TimeoutExpired, OSError) as e:
             raise SourceLostError(f"adb を実行できない: {e}") from e
         if result.returncode != 0:
             detail = result.stderr.decode(errors="replace").strip()
+            if (
+                "closed" in detail and not _retried
+            ):  # 接続が一時的に切れた(実機で起きた)。1 回だけやり直す
+                time.sleep(1.0)
+                return self._call(args, _retried=True)
             raise SourceLostError(f"adb が失敗(終了コード{result.returncode}): {detail}")
         return result
 

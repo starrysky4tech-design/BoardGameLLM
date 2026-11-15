@@ -26,11 +26,12 @@ from bglm.plugins.kahuna.vision.numbers import read_deck, read_round, read_score
 from bglm.plugins.kahuna.vision.sticks import assign_to_lines, find_blobs
 from bglm.plugins.kahuna.vision.stones import find_stones
 from bglm.plugins.kahuna.vision.templates import TemplateSet
+from bglm.toolkit.waiting import poll
 
 CONTINUE_BUTTON = Point(1255, 850)  # 決算ダイアログのボタン(NEXT も同じ位置)
 ELEMENT_MIN = 0.70  # 要素の信頼度がこれ未満なら low_confidence に入れる
 HAND_MAX = 5
-WINNER_ROI = (640, 780, 1000, 1520)  # y0, y1, x0, x1
+WINNER_ROI = (1000, 640, 1520, 780)  # x0, y0, x1, y1
 WINNER_MIN_SCORE = 0.80
 RETRIES = 2  # 読めなかったときの取り直しの回数
 RETRY_WAIT_SEC = 1.0
@@ -54,12 +55,13 @@ class KahunaRecognizer:
 
     def observe(self, io: GameIo, previous: KahunaState | None) -> Recognition[KahunaState]:
         """自分の手番で読めなかったときは、カードの動き(配る・引く)が収まるのを待って取り直す。"""
-        recognition = self.recognize(io.capture().image, io)
-        for _ in range(self._retries):
-            if recognition.ui.kind is not UiKind.PLAYABLE or recognition.state is not None:
-                break
-            self._sleep(self._retry_wait_sec)
-            recognition = self.recognize(io.capture().image, io)
+        recognition, _ = poll(
+            lambda: self.recognize(io.capture().image, io),
+            lambda r: r.ui.kind is not UiKind.PLAYABLE or r.state is not None,
+            tries=max(0, self._retries) + 1,
+            wait_sec=self._retry_wait_sec,
+            sleep=self._sleep,
+        )
         return recognition
 
     def recognize(
@@ -153,14 +155,9 @@ class KahunaRecognizer:
         self, image: NDArray[np.uint8], ui: UiState, confidence: float
     ) -> Recognition[KahunaState]:
         """勝者の表示から勝敗を読む。読めなければ state=None(結果は記録されない)。"""
-        y0, y1, x0, x1 = WINNER_ROI
-        gray = np.asarray(cv2.cvtColor(image[y0:y1, x0:x1], cv2.COLOR_BGR2GRAY), dtype=np.uint8)
-        score = {
-            name: float(
-                cv2.matchTemplate(gray, self._templates.dialogs[name], cv2.TM_CCOEFF_NORMED).max()
-            )
-            for name in ("winner_me", "winner_draw")
-        }
+        score = screens.dialog_scores(
+            image, WINNER_ROI, ("winner_me", "winner_draw"), self._templates
+        )
         if score["winner_me"] >= WINNER_MIN_SCORE:
             winner: Player | None = Player.ME
         elif score["winner_draw"] >= WINNER_MIN_SCORE:

@@ -1,0 +1,180 @@
+{
+  "_comment": "鳥の表。対局で見えた札の画像から、人が印(生息地・コスト・巣・卵の上限・翼長・点)を読んで入れた。180 枚のうちの一部(出典: source の画像名。datasets/raw/wingspan/feasibility/)。cost: foods=必ず払う餌('+')、either=true なら '/'(どれか 1 つ)、wild=何でもよい個数。habitats: forest / grassland / wetland。nest: platform=皿 bowl=椀 cavity=樹洞 ground=地上 star=星。power.timing: when_played=白 when_activated=茶 between_turns=桃 none。kind は powers/registry.py の種類名で、未実装の種類は Unmodeled として扱う。name_en は名前のボーナスの判定用(付録 A p.4)で、判明した分だけ入れる(未記入なら数えない)。",
+  "birds": [
+    {
+      "name": "ヒメウタスズメ", "name_en": "Lincoln's Sparrow", "habitats": ["forest", "grassland", "wetland"],
+      "cost": {"foods": ["invertebrate", "seed"], "wild": 0, "either": false},
+      "points": 3, "nest": "ground", "egg_limit": 2, "wingspan_cm": 20,
+      "power": {"timing": "when_activated", "kind": "move_if_rightmost", "params": {}, "text": "この鳥が置かれている生息地にあるカードのうち、最も右端がこのカードなら、この鳥を別の生息地に移す。"},
+      "source": "009_turn_start.png"
+    },
+    {
+      "name": "カンムリウズラ", "name_en": "California Quail", "habitats": ["forest", "grassland"],
+      "cost": {"foods": ["invertebrate", "seed", "seed"], "wild": 0, "either": false},
+      "points": 3, "nest": "bowl", "egg_limit": 6, "wingspan_cm": 36,
+      "power": {"timing": "when_activated", "kind": "lay_egg_on_self", "params": {"count": 1}, "text": "あなたの鳥は卵を 1 個産卵し、この鳥の上に置く。"},
+      "source": "009_turn_start.png"
+    },
+    {
+      "name": "クロズキンアメリカムシクイ", "name_en": "Hooded Warbler", "habitats": ["forest"],
+      "cost": {"foods": ["invertebrate", "invertebrate"], "wild": 0, "either": false},
+      "points": 7, "nest": "bowl", "egg_limit": 3, "wingspan_cm": 18,
+      "power": {"timing": "none", "kind": "", "params": {}, "text": ""},
+      "source": "009_turn_start.png"
+    },
+    {
+      "name": "イヌワシ", "name_en": "Golden Eagle", "habitats": ["grassland", "wetland"],
+      "cost": {"foods": ["rodent", "rodent", "rodent"], "wild": 0, "either": false},
+      "points": 8, "nest": "platform", "egg_limit": 1, "wingspan_cm": 201, "predator": true,
+      "power": {"timing": "when_activated", "kind": "predator_look_top_deck", "params": {"wingspan_under": 100}, "text": "鳥の山の一番上のカードを確認する。その鳥の翼長が 100cm 未満なら、この鳥の下にその鳥を差し込む。そうでないなら、その鳥を捨て札にする。"},
+      "source": "009_turn_start.png"
+    },
+    {
+      "name": "クロハサミアジサシ", "name_en": "Black Skimmer", "habitats": ["wetland"],
+      "cost": {"foods": ["fish", "fish"], "wild": 0, "either": false},
+      "points": 6, "nest": "ground", "egg_limit": 2, "wingspan_cm": 112, "predator": true,
+      "power": {"timing": "when_activated", "kind": "predator_roll_cache", "params": {"food": "fish", "count": 1}, "text": "餌箱の外にあるダイスをすべて振る。出目に魚が 1 つでもあるなら、あなたは魚を 1 個獲得し、この鳥の上に蓄える。"},
+      "source": "009_turn_start.png"
+    },
+    {
+      "name": "ボルチモアムクドリモドキ", "name_en": "Baltimore Oriole", "habitats": ["forest"],
+      "cost": {"foods": ["fruit", "fruit", "invertebrate"], "wild": 0, "either": false},
+      "points": 9, "nest": "star", "egg_limit": 2, "wingspan_cm": 30,
+      "power": {"timing": "when_activated", "kind": "all_gain_supply", "params": {"food": "fruit", "count": 1}, "text": "各プレイヤーは共通在庫から果実を 1 個ずつ獲得する。"},
+      "source": "038_icon_b.png"
+    },
+    {
+      "name": "ショウジョウコウカンチョウ", "name_en": "Northern Cardinal", "habitats": ["forest"],
+      "cost": {"foods": ["fruit", "seed"], "wild": 0, "either": false},
+      "points": 3, "nest": "bowl", "egg_limit": 5, "wingspan_cm": 30,
+      "power": {"timing": "when_activated", "kind": "gain_supply", "params": {"food": "fruit", "count": 1}, "text": "あなたは共通在庫から果実を 1 個獲得する。"},
+      "source": "038_icon_b.png"
+    },
+    {
+      "name": "アメリカトキコウ", "name_en": "Wood Stork", "habitats": ["wetland"],
+      "cost": {"foods": ["fish", "rodent"], "wild": 1, "either": false},
+      "points": 6, "nest": "platform", "egg_limit": 2, "wingspan_cm": 155,
+      "power": {"timing": "when_played", "kind": "draw_bonus_keep", "params": {"draw": 2, "keep": 1}, "text": "あなたはボーナスの山の上から 2 枚引き、そのうち 1 枚を選んで獲得する。"},
+      "source": "038_icon_b.png"
+    },
+    {
+      "name": "シロハラミソサザイ", "name_en": "Bewick's Wren", "habitats": ["forest", "grassland", "wetland"],
+      "cost": {"foods": ["invertebrate", "invertebrate", "seed"], "wild": 0, "either": false},
+      "points": 4, "nest": "cavity", "egg_limit": 3, "wingspan_cm": 18,
+      "power": {"timing": "when_activated", "kind": "move_if_rightmost", "params": {}, "text": "この鳥が置かれている生息地にあるカードのうち、最も右端がこのカードなら、この鳥を別の生息地に移す。"},
+      "source": "255_draw.png"
+    },
+    {
+      "name": "シマセゲラ", "name_en": "Red-bellied Woodpecker", "habitats": ["forest"],
+      "cost": {"foods": ["invertebrate", "seed"], "wild": 0, "either": true},
+      "points": 1, "nest": "cavity", "egg_limit": 3, "wingspan_cm": 41,
+      "power": {"timing": "when_activated", "kind": "gain_feeder_cache", "params": {"food": "seed", "count": 1}, "text": "あなたは餌箱から種を 1 個獲得する(餌箱にあるなら)。それをこの鳥の上に蓄えてもよい。"},
+      "source": "255_draw.png"
+    },
+    {
+      "name": "アカハシリュウキュウガモ", "name_en": "Black-bellied Whistling-Duck", "habitats": ["wetland"],
+      "cost": {"foods": ["seed", "seed"], "wild": 0, "either": false},
+      "points": 2, "nest": "cavity", "egg_limit": 5, "wingspan_cm": 76, "flocking": true,
+      "power": {"timing": "when_activated", "kind": "discard_food_tuck_from_deck", "params": {"food": "seed", "tuck": 2}, "text": "あなたは種を 1 個捨ててもよい。そうしたなら、鳥の山の上から 2 枚引き、この鳥の下に差し込む。"},
+      "source": "255_draw.png"
+    },
+    {
+      "name": "イスカ", "name_en": "Red Crossbill", "habitats": ["forest"],
+      "cost": {"foods": ["seed", "seed"], "wild": 0, "either": false},
+      "points": 6, "nest": "bowl", "egg_limit": 2, "wingspan_cm": 28,
+      "power": {"timing": "when_activated", "kind": "all_gain_supply", "params": {"food": "seed", "count": 1}, "text": "各プレイヤーは共通在庫から種を 1 個ずつ獲得する。"},
+      "source": "255_draw.png"
+    },
+    {
+      "name": "ハシビロガモ", "name_en": "Northern Shoveler", "habitats": ["wetland"],
+      "cost": {"foods": ["invertebrate", "seed", "seed"], "wild": 0, "either": false},
+      "points": 7, "nest": "ground", "egg_limit": 4, "wingspan_cm": 76,
+      "power": {"timing": "when_activated", "kind": "all_draw_deck", "params": {"count": 1}, "text": "各プレイヤーは鳥の山の上から 1 枚ずつ引く。"},
+      "source": "203_select.png"
+    },
+    {
+      "name": "アメリカヤマセミ", "name_en": "Belted Kingfisher", "habitats": ["wetland"],
+      "cost": {"foods": ["fish"], "wild": 1, "either": false},
+      "points": 4, "nest": "star", "egg_limit": 4, "wingspan_cm": 53,
+      "power": {"timing": "between_turns", "kind": "on_opponent_play_habitat_gain_supply", "params": {"habitat": "wetland", "food": "fish", "count": 1}, "text": "他のプレイヤーが湿地の鳥をプレイした時、あなたは共通在庫から魚を 1 個獲得する。"},
+      "source": "203_select.png"
+    },
+    {
+      "name": "アメリカワシミミズク", "name_en": "Great Horned Owl", "habitats": ["forest"],
+      "cost": {"foods": ["rodent", "rodent", "rodent"], "wild": 0, "either": false},
+      "points": 8, "nest": "platform", "egg_limit": 2, "wingspan_cm": 112, "predator": true,
+      "power": {"timing": "when_activated", "kind": "predator_look_top_deck", "params": {"wingspan_under": 100}, "text": "鳥の山の一番上のカードを確認する。その鳥の翼長が 100cm 未満なら、この鳥の下にその鳥を差し込む。そうでないなら、その鳥を捨て札にする。"},
+      "source": "203_select.png"
+    },
+    {
+      "name": "ヤブガラ", "name_en": "Bushtit", "habitats": ["forest", "grassland", "wetland"],
+      "cost": {"foods": ["invertebrate", "seed"], "wild": 0, "either": false},
+      "points": 2, "nest": "star", "egg_limit": 5, "wingspan_cm": 15, "flocking": true,
+      "power": {"timing": "when_played", "kind": "tuck_from_hand_then_lay", "params": {"lay": 1}, "text": "あなたは自分の手札から 1 枚選び、この鳥の下に差し込んでもよい。そうしたなら、この鳥は卵を 1 個産卵し、この鳥の上に置く。"},
+      "source": "203_select.png"
+    },
+    {
+      "name": "ハシグロアビ", "name_en": "Common Loon", "habitats": ["wetland"],
+      "cost": {"foods": ["fish"], "wild": 1, "either": false},
+      "points": 6, "nest": "ground", "egg_limit": 1, "wingspan_cm": 117,
+      "power": {"timing": "when_activated", "kind": "fewest_in_habitat_draw", "params": {"habitat": "wetland", "count": 1}, "text": "湿地の鳥が最も少ない各プレイヤーは、鳥の山から 1 枚ずつ獲得する。"},
+      "source": "291.png"
+    },
+    {
+      "name": "ミサゴ", "name_en": "Osprey", "habitats": ["wetland"],
+      "cost": {"foods": ["fish"], "wild": 0, "either": false},
+      "points": 5, "nest": "platform", "egg_limit": 2, "wingspan_cm": 160,
+      "power": {"timing": "when_activated", "kind": "all_gain_supply", "params": {"food": "fish", "count": 1}, "text": "各プレイヤーは、共通在庫から魚を 1 個ずつ獲得する。"},
+      "source": "291.png"
+    },
+    {
+      "name": "キバシカッコウ", "name_en": "Yellow-billed Cuckoo", "habitats": ["forest"],
+      "cost": {"foods": ["invertebrate", "invertebrate"], "wild": 1, "either": false},
+      "points": 5, "nest": "platform", "egg_limit": 2, "wingspan_cm": 46,
+      "power": {"timing": "between_turns", "kind": "on_opponent_lay_eggs_lay_on_nest", "params": {"nest": "bowl", "count": 1}, "text": "他のプレイヤーが「産卵」アクションを実行した時、この鳥は卵を 1 個産卵し、椀の巣をもつ他の鳥の上に置く。"},
+      "source": "291.png"
+    },
+    {
+      "name": "コマツグミ", "name_en": "American Robin", "habitats": ["forest", "grassland"],
+      "cost": {"foods": ["fruit", "invertebrate"], "wild": 0, "either": true},
+      "points": 1, "nest": "bowl", "egg_limit": 4, "wingspan_cm": 43,
+      "power": {"timing": "when_activated", "kind": "tuck_from_hand_then_gain", "params": {"food": "invertebrate", "count": 1}, "text": "あなたは自分の手札から鳥を 1 枚選び、この鳥の下に差し込んでもよい。そうしたなら、虫を 1 枚獲得する。"},
+      "source": "248_hand.png"
+    },
+    {
+      "name": "アメリカフクロウ", "habitats": ["forest"],
+      "cost": {"foods": ["rodent"], "wild": 0, "either": false},
+      "points": 3, "nest": "cavity", "egg_limit": 2, "wingspan_cm": 107, "predator": true,
+      "power": {"timing": "when_activated", "kind": "predator_look_top_deck", "params": {"wingspan_under": 75}, "text": "鳥の山の一番上のカードを確認する。その鳥の翼長が 75cm 未満なら、この鳥の下にその鳥を差し込む。そうでないなら、その鳥を捨て札にする。"},
+      "source": "372_now.png"
+    },
+    {
+      "name": "オウゴンアメリカムシクイ", "habitats": ["forest", "wetland"],
+      "cost": {"foods": ["invertebrate", "invertebrate", "seed"], "wild": 0, "either": false},
+      "points": 8, "nest": "cavity", "egg_limit": 4, "wingspan_cm": 23,
+      "power": {"timing": "none", "kind": "", "params": {}, "text": ""},
+      "source": "372_now.png"
+    },
+    {
+      "name": "ノドグロハチドリ", "habitats": ["forest", "grassland", "wetland"],
+      "cost": {"foods": [], "wild": 1, "either": false},
+      "points": 4, "nest": "bowl", "egg_limit": 2, "wingspan_cm": 8,
+      "power": {"timing": "when_activated", "kind": "all_gain_supply", "params": {"food": "fruit", "count": 1}, "text": "各プレイヤーは共通在庫から果実を 1 個ずつ獲得する。"},
+      "source": "372_now.png"
+    },
+    {
+      "name": "オウサマタイランチョウ", "habitats": ["forest", "grassland", "wetland"],
+      "cost": {"foods": ["fruit", "invertebrate"], "wild": 0, "either": true},
+      "points": 2, "nest": "bowl", "egg_limit": 2, "wingspan_cm": 38,
+      "power": {"timing": "between_turns", "kind": "on_opponent_play_habitat_gain_supply", "params": {"habitat": "forest", "food": "invertebrate", "count": 1}, "text": "他のプレイヤーが森林の鳥をプレイした時、あなたは共通在庫から虫を 1 個獲得する。"},
+      "source": "379_now.png"
+    },
+    {
+      "name": "スミレミドリツバメ", "habitats": ["forest", "grassland", "wetland"],
+      "cost": {"foods": ["invertebrate", "invertebrate"], "wild": 0, "either": false},
+      "points": 3, "nest": "cavity", "egg_limit": 3, "wingspan_cm": 36,
+      "power": {"timing": "when_activated", "kind": "tuck_from_hand_then_draw", "params": {"draw": 1}, "text": "あなたは自分の手札から鳥を 1 枚選び、この鳥の下に差し込んでもよい。そうしたなら、鳥を 1 枚獲得する。"},
+      "source": "379_now.png"
+    }
+  ]
+}

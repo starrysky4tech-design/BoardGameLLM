@@ -162,8 +162,11 @@ scripts/
 │   ├── adb_capture.py      # 端末の画面取得・タップ・速度測定
 │   ├── win_capture.py      # PCウィンドウの取得・クリック・キー
 │   ├── vram_log.py         # GPUメモリ使用量の記録
-│   └── observe.py          # 入力を送らず画面を保存する(--game で指定)
-└── <game>/                 # そのゲーム専用(kahuna: 認識素材の収集・テンプレート作成・実機1手実行など)
+│   ├── observe.py          # 入力を送らず画面を保存する(--game で指定)
+│   ├── record_session.py   # 人が遊んでいる間の画面の記録(素材集め)
+│   └── step_once.py        # 実機で1手だけ、認識 → 思考 → 操作(--game で指定。GamePlugin の形のゲーム)
+└── <game>/                 # そのゲーム専用(kahuna: 認識素材の収集・テンプレート作成など)
+    └── step_hooks.py       # step_once へのゲーム固有の差し込み(任意。kahuna: 引く操作が残っている印、hive: 初期状態から読む)
 ```
 
 実行は `uv run python -m scripts.<common|game>.<名前>`。新しい道具は、ゲーム名が要るなら `<game>/`、`--game` で切り替えられるなら `common/` に置く。
@@ -206,6 +209,11 @@ scripts/
 | `toolkit/cnn_reader.py` | 小型CNNの `ElementReader` |
 | `toolkit/vlm_reader.py` | VLMの `ElementReader` |
 | `toolkit/reader_chain.py` | 読み取り手段の段階的な実行 |
+| `toolkit/images.py` | 画像ファイルの読み込み(日本語のパスでも読める)、グレースケール、領域 `(x0, y0, x1, y1)` の切り出し |
+| `toolkit/matching.py` | テンプレートとの正規化相関(最大値と位置、山の列挙) |
+| `toolkit/components.py` | 2 値画像の連結成分(箱・面積・重心) |
+| `toolkit/waiting.py` | 「取得して確かめる。だめなら待って取り直す」(`poll`) |
+| `toolkit/screen.py` | 取得画像の大きさ(SHG11 の横向き 2432x1080)と、その確認 |
 
 ### プラグイン
 
@@ -220,7 +228,7 @@ scripts/
 | `kahuna/vision/executor.py` | Kahunaの `MoveExecutor` |
 | `kahuna/data/board.json` | 島と点線の定義 |
 | `kahuna/data/strategy.toml` | 評価関数の重み |
-| `hive/__init__.py` | Hiveの `GamePlugin`(`create_plugin`)。**未作成**(フェーズ4。認識と操作がそろってから) |
+| `hive/__init__.py` | Hiveの `GamePlugin`(`create_plugin`)。組み立てと公開だけ |
 | `hive/logic/models.py` | `HexCoord`、`Color`、`Kind`、`Piece`、`HiveState`、`HiveMove` |
 | `hive/logic/rules.py` | Hiveの `Rules`(配置、移動、ワンハイブ、滑り込み、勝敗、パス) |
 | `hive/logic/strategy.py` | Hiveの `Strategy`(反復深化のアルファベータ) |
@@ -228,9 +236,49 @@ scripts/
 | `hive/vision/recognizer.py` | Hiveの `Recognizer`(盤を読み、直前の状態と合法手1手で照合する) |
 | `hive/vision/grid.py` | マスの検出、画面座標 ↔ 軸座標の相互変換 |
 | `hive/vision/pieces.py` | 絵の色から駒の種類を判定する(テンプレートは使わない) |
-| `hive/vision/screens.py` | 画面種別の判定(メニュー、説明、結果)。**未作成**(フェーズ3の残り) |
-| `hive/vision/executor.py` | Hiveの `MoveExecutor`。**未作成**(フェーズ4) |
+| `hive/vision/screens.py` | 画面種別の判定(盤を読んだ結果から、盤・盤なし・重なり・格子の不一致を分ける) |
+| `hive/vision/stitch.py` | 左右へ寄せた複数の画面のマスを、1つの格子に継ぎ合わせる |
+| `hive/vision/wide.py` | 盤が画面より広いときの読み取り(`WideBoardRecognizer`、`wide_read`)と寄せる操作(`pan_content`、`board_clipped`) |
+| `hive/vision/executor.py` | Hiveの `MoveExecutor`(置く・動かす。Pass は未確認のため実行しない) |
 | `hive/data/strategy.toml` | 評価関数の重み |
+| `monopoly/sync.py` | 手番ごとの同期(Log・現金・所有・抵当・家を台帳へ反映し、全体盤と照合する。再同期。保存・再開) |
+| `monopoly/runtime.py` | 実行ループ(`Agent`、`step`、`run`)。1 画面を判別して、判断し、操作を高々 1 つ送る。画面ごとの処理は `_HANDLERS` に集約。**`GamePlugin` の形にはまだしていない**(`.steering/20261104-monopoly-autoplay-handoff`) |
+| `monopoly/logic/board.py`、`catalogue.py`、`cards.py` | 盤の 40 マス、28 の土地の定義(価格・賃料・建設費)、Chance / Community Chest。値は実機とルールブックで確かめた |
+| `monopoly/logic/rules.py`、`engine.py`、`simulation.py` | ルールと、自己対戦(方針の比較用)。画面に依存しない |
+| `monopoly/logic/policies.py` | 方針(`ExpectedValuePolicy`: 購入・競りの上限・建設・取引の価値)。購入と競りの上限は、同じ `deed_value` から出す |
+| `monopoly/logic/decisions.py` | 実機の状態から、方針へ問い合わせる(`Decider`: 購入、入札、建設、取引の応答、保釈、資金調達) |
+| `monopoly/logic/auction_bid.py` | 入札額(推定のすぐ上から入札、相手の現金と同額で落札、勝てないときは相手に払わせる入札) |
+| `monopoly/logic/opponent_model.py` | 相手の入札の上限の推定(`BidModel`。対局中の観測から学習。観測が無い間は保守的) |
+| `monopoly/logic/landing_odds.py` | 相手が次の手番で各マスに止まる確率(ダブルの振り直し、刑務所を含む)。建設の期待収益に使う |
+| `monopoly/logic/reconcile.py`、`cash_check.py` | 台帳と全体盤の照合(差のある土地・色グループだけ直す)、現金の食い違いの扱い・金額の読めない競りの逆算 |
+| `monopoly/logic/jail.py` | 刑務所の判断(釈放カード、保釈金、ゾロ目待ち)。基準はユーザー指示 |
+| `monopoly/logic/funding.py` | 負債の資金調達の順序(揃っていない街の抵当 → 鉄道・会社 → 取引 → 家の売却) |
+| `monopoly/logic/trade_advisor.py` | 取引の提案への応答(受ける・断る・対案) |
+| `monopoly/logic/events.py` | Log の文型の解析(`parse_line`)。OCR の誤読(空白の欠落、`o`→`0`、`A`→`M`)を許す。読めない行は `UnknownLine` |
+| `monopoly/logic/log_replay.py` | Log から位置・刑務所・GO の通過を追う。出目の行が無い移動(カード)は、「landed on」に合わせる |
+| `monopoly/logic/ledger.py`、`state_update.py`、`snapshot.py` | 現金の予測(Log から)、所有・家・抵当の反映、画面の読み取りからの状態の組み立て |
+| `monopoly/vision/screens.py` | 画面の種類の判別(固定位置のテンプレート照合。購入・競り・取引・建設・刑務所・負債・終了など)。盤の色の確認(端末の色補正) |
+| `monopoly/vision/cash.py`、`dice.py`、`roll_reader.py` | 所持金(桁ごとのテンプレート)、ダイスの出目、誰が振ったか |
+| `monopoly/vision/log_reader.py`、`dialog_reader.py`、`trade_reader.py`、`ocr_engine.py` | Log(RapidOCR)、購入・競りの文言、取引画面の双方の提供。RapidOCR のエンジンは `ocr_engine.py` で共有する |
+| `monopoly/vision/board_geometry.py`、`board_scan.py` | 全体盤 1 枚の読み取り(射影変換、所有・抵当・ホテル・家の見積もり、所持金・出目と合わせた `observe`) |
+| `monopoly/vision/bars.py`、`ownership.py`、`holdings.py` | 拡大盤・建設画面の所有者(土地の下の棒の色)・家・ホテル、色グループだけを開く読み取り(`read_group_houses`)、28 か所の読み直し(予備) |
+| `monopoly/vision/executor.py`、`builder.py`、`property_manager.py` | 操作: Roll・End Turn・購入・入札・Forfeit・保釈・釈放カード・取引の応答 / 建設と家の売却(`builder.change_houses`。+ / − を押し、Make Changes) / 抵当・解除 |
+| `monopoly/vision/navigation.py` | 盤・拡大盤・建設画面の移動の共通部品: 盤の通常の画面へ戻る(`return_to_board`)、色グループを開いて案内を消す(`open_group`)。通知の OK などの共通の座標・待ち秒 |
+| `monopoly/data/screens/` | 画面判別のテンプレート |
+| `monopoly/data/digits/`、`monopoly/data/yen/` | 所持金の数字(0〜9)と ₼ のテンプレート。`scripts/monopoly/build_digit_templates.py` で、ラベル付き画像から作る |
+| `maquis/logic/models.py` | Maquis の手(`Place`、`Resolve`、`EndPhase`)、`MaquisState`、`Resources`、`Phase` |
+| `maquis/logic/rules.py` | Maquis の `Rules`(確認済みの範囲: 配置、巡回の出現、確認済みの行動、帰還と捕縛、敗北。任務・士気は未実装) |
+| `maquis/data/actions.json` | 実機で確かめた地点の行動(医者・食料品店・カフェ、任務Bの★2つ) |
+| `maquis/vision/layout.py` | 画面の座標(地点の中心、資材の丸、任務の枠、ボタン、山札の画面)。盤が固定なので定数 |
+| `maquis/vision/screens.py` | 画面の種類の判別(盤・確認ダイアログ・終局・山札・タイトル・不明) |
+| `maquis/vision/nodes.py` | 地点と任務の枠の団員・巡回・「!」・監獄の読み取り(基準画像との相関) |
+| `maquis/vision/counters.py`、`digits.py` | 資材、団員数(N/M)、フェイズ、★、任務の種類の読み取り |
+| `maquis/vision/cards.py`、`deck_reader.py` | 山札の画面のカード(絵のテンプレート)と、山札を開いて捨札の先頭を読む操作 |
+| `maquis/vision/board_reading.py`、`recognizer.py` | 盤1枚の読み取りと整合の確認、前の状態との照合で `MaquisState` にする |
+| `maquis/data/templates/` | 認識のテンプレート(空き地の基準、数字、画面、カードの絵、任務の絵)。`scripts/maquis/build_templates.py` が記録画面から作る |
+| `maquis/logic/board.py` | 地点と道、隠れ家への到達判定(`reachable_from_hideout`)、帰還不可の地点(`stranded`) |
+| `maquis/logic/patrol.py` | 巡回カードの山札(残りの多重集合。橙の数字 = ①がその地点の残り枚数) |
+| `maquis/data/board.json`、`patrol_cards.json` | 地点・道と巡回カード10枚(実機の画面から。出典は各ファイルの `_source`) |
 | `ssb2/__init__.py` | 大戦略SSB2の `GamePlugin` |
 | `ssb2/logic/models.py` | `Ssb2State`、`Ssb2Move`、`WeaponSpec` など |
 | `ssb2/logic/rules.py` | 大戦略SSB2の `Rules` |
@@ -254,6 +302,7 @@ scripts/
 | 共通のデータモデル | `core/` | `snake_case.py` | `models.py` |
 | 外部接続の実装 | `infrastructure/` | `<対象>.py` | `adb_device.py` |
 | 読み取り手段 | `toolkit/` | `<手段>_reader.py` | `template_reader.py` |
+| 認識・操作の共通部品(2 つ以上のゲームが使うもの) | `toolkit/` | 役割名 | `matching.py` |
 | ゲームのルールと思考 | `plugins/<game>/logic/` | 役割名 | `rules.py` |
 | ゲームの認識と操作 | `plugins/<game>/vision/` | 役割名 | `executor.py` |
 | ゲームの静的データ | `plugins/<game>/data/` | `<種類>.json` | `weapons.json` |

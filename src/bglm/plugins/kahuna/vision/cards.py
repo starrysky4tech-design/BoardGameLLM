@@ -13,6 +13,8 @@ import numpy as np
 from numpy.typing import NDArray
 
 from bglm.plugins.kahuna.vision.templates import TemplateSet
+from bglm.toolkit.images import crop, gray
+from bglm.toolkit.matching import correlation, find_peaks, match_score
 
 # --- 場札 ---
 MARKET_SLOT_X = (1185, 1390, 1600)  # 3枚の左端(原寸)
@@ -28,6 +30,7 @@ HAND_ANGLES = (-12, -8, -4, 0, 4, 8, 12)  # カードの傾き(度)
 HAND_SCALES = (0.95, 1.0, 1.1)  # 手前のカードほど大きい
 HAND_MIN_SCORE = 0.58
 HAND_MIN_DISTANCE = 38  # 同じカードの重複検出を除く距離
+HAND_PEAK_HALF = (40, 20)  # 同じ傾きの照合で、拾った山の周りを消す範囲(横, 縦の半分)
 
 
 @dataclass(frozen=True)
@@ -57,13 +60,9 @@ def read_market(
         if not _present(slot):
             readings.append(None)
             continue
-        gray = np.asarray(cv2.cvtColor(slot, cv2.COLOR_BGR2GRAY), dtype=np.uint8)
+        slot_gray = gray(slot)
         scores = {
-            island: float(
-                cv2.matchTemplate(
-                    gray, template[cut_top:-cut_top, cut_x2:-cut_x2], cv2.TM_CCOEFF_NORMED
-                ).max()
-            )
+            island: match_score(slot_gray, template[cut_top:-cut_top, cut_x2:-cut_x2])
             for island, template in templates.names.items()
         }
         ranked = sorted(scores.items(), key=lambda item: -item[1])
@@ -91,30 +90,27 @@ def _rotated(template: NDArray[np.uint8], angle: float, scale: float) -> NDArray
 
 def read_hand(image: NDArray[np.uint8], templates: TemplateSet) -> list[CardReading]:
     """手札の名前を、傾けたテンプレートで探す。上から下の順(アルファベット順に並ぶ)。"""
-    x0, y0, x1, y1 = HAND_ROI
-    gray = np.asarray(cv2.cvtColor(image[y0:y1, x0:x1], cv2.COLOR_BGR2GRAY), dtype=np.uint8)
+    x0, y0, _, _ = HAND_ROI
+    hand_gray = gray(crop(image, HAND_ROI))
+    half_w, half_h = HAND_PEAK_HALF
     candidates: list[CardReading] = []
     for island, template in templates.names.items():
         core = template[8:-8, 12:-12]
         for angle in HAND_ANGLES:
             for scale in HAND_SCALES:
                 rotated = _rotated(core, angle, scale)
-                if rotated.shape[0] >= gray.shape[0] or rotated.shape[1] >= gray.shape[1]:
+                if rotated.shape[0] >= hand_gray.shape[0] or rotated.shape[1] >= hand_gray.shape[1]:
                     continue
-                result = cv2.matchTemplate(gray, rotated, cv2.TM_CCOEFF_NORMED)
-                while True:
-                    _, best, _, (px, py) = cv2.minMaxLoc(result)
-                    if best < HAND_MIN_SCORE:
-                        break
+                result = correlation(hand_gray, rotated)
+                for peak in find_peaks(result, HAND_MIN_SCORE, half_w, half_h):
                     candidates.append(
                         CardReading(
                             island,
-                            float(best),
-                            px + rotated.shape[1] // 2 + x0,
-                            py + rotated.shape[0] // 2 + y0,
+                            peak.score,
+                            peak.x + rotated.shape[1] // 2 + x0,
+                            peak.y + rotated.shape[0] // 2 + y0,
                         )
                     )
-                    result[max(0, py - 20) : py + 20, max(0, px - 40) : px + 40] = -1
     # 近い位置の重複(別の島の名前や、傾きの違い)は、スコアの高い方を残す
     candidates.sort(key=lambda c: -c.score)
     kept: list[CardReading] = []

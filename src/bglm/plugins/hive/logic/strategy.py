@@ -28,6 +28,17 @@ def load_weights(path: Path = WEIGHTS_PATH) -> Weights:
     return Weights(queen_pressure=float(data["queen_pressure"]))
 
 
+SCREEN_MAX_COLUMNS = 7  # 盤の列の範囲の上限(8列)。1列は約116px。幅 7×116+155≒967px で、画面の幅 1080 の左右に約56pxの余白が残る
+
+
+def fits_screen(state: HiveState) -> bool:
+    """盤が、画面の幅に収まるか(列の範囲が上限以下)。"""
+    if not state.stacks:
+        return True
+    qs = [at.q for at in state.stacks]
+    return max(qs) - min(qs) <= SCREEN_MAX_COLUMNS
+
+
 class OutOfTimeError(Exception):
     """思考時間が尽きた。その時点までに完了した深さの結果を使う。"""
 
@@ -48,7 +59,9 @@ class HiveStrategy:
     def choose(self, state: HiveState, legal: Sequence[HiveMove], budget: TimeBudget) -> HiveMove:
         if not legal:
             raise ValueError("合法手が無い(Pass も含めて1つは必ずあるはず)")
-        order = list(legal)
+        # 盤が画面に収まる手を優先する(はみ出すと、画面で盤を読めなくなるため)。収まる手が無ければ全部から選ぶ
+        fitting = [m for m in legal if fits_screen(self._rules.apply(state, m))]
+        order = list(fitting or legal)
         self._rng.shuffle(order)  # 同点の手は乱数の順で選ばれる
         chosen = order[0]
         for depth in range(1, self._max_depth + 1):

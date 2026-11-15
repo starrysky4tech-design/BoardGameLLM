@@ -6,18 +6,25 @@
 - 左の帯が青(B > R)で暗い → 対戦中のダイアログ。ボタンの文字で決算(CONTINUE)と終了(NEXT)を分ける
 - 左の帯が青で明るい → 対戦。チュートリアルの案内、「READY FOR A NEW ROUND」の帯、
   手札の明暗(自分の手番は明るく、相手の手番は暗く沈む)で分ける
+
+領域はすべて (x0, y0, x1, y1)。
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 
-import cv2
 import numpy as np
 from numpy.typing import NDArray
 
 from bglm.core.models import UiKind
+from bglm.plugins.kahuna.vision.cards import HAND_ROI
+from bglm.plugins.kahuna.vision.glyphs import red_mask
 from bglm.plugins.kahuna.vision.templates import TemplateSet
+from bglm.toolkit.images import Box, crop, gray
+from bglm.toolkit.matching import match_score
+from bglm.toolkit.screen import LANDSCAPE_SIZE, has_size
 
-IMAGE_SIZE = (2432, 1080)  # 幅, 高さ
+IMAGE_SIZE = LANDSCAPE_SIZE  # 幅, 高さ
 
 # 画面の名前(ログと評価セットのラベルに使う)
 LOADING = "loading"
@@ -32,16 +39,16 @@ GAME_END = "game_end"
 DIALOG = "dialog"
 BAD_SIZE = "bad_size"
 
-SIDE_STRIP = (300, 800, 80, 250)  # y0, y1, x0, x1。盤の外の、左の帯
-TIP_STRIP = (40, 60, 1000, 1700)
-HAND_ROI = (200, 960, 1620, 2010)
+SIDE_STRIP = (80, 300, 250, 800)  # 盤の外の、左の帯
+TIP_STRIP = (1000, 40, 1700, 60)
+BANNER_COLUMNS = (100, 2300)  # 帯の模様を探す横の範囲
 DIM_MAX = 80  # 暗い重ね(ダイアログ・再開確認)の、帯の最大チャンネル平均の上限
 SAND_BRIGHT_MIN = 150
 UNIFORM_STD = 2.0
 TIP_RED_MIN = 180  # 案内の羊皮紙の色
 BANNER_RED_ROWS = 0.5  # 帯の赤い模様が占める行の割合
 HAND_WHITE_MIN = 3.0  # 自分の手番の手札の白い画素の割合(%)。実測は明るい4以上、暗い1未満
-BUTTON_ROI = (790, 910, 1000, 1500)
+BUTTON_ROI = (1000, 790, 1500, 910)
 BUTTON_MIN_SCORE = 0.80
 BUTTON_CLEARANCE = 0.05  # 2つのボタンの文字の、相関の差
 
@@ -53,24 +60,26 @@ class Screen:
     confidence: float = 1.0
 
 
+def dialog_scores(
+    image: NDArray[np.uint8], box: Box, names: Sequence[str], templates: TemplateSet
+) -> dict[str, float]:
+    """ダイアログの領域と、文字のテンプレート(ボタン・勝者の表示)ごとの相関。"""
+    region = gray(crop(image, box))
+    return {name: match_score(region, templates.dialogs[name]) for name in names}
+
+
 def hand_white_percent(image: NDArray[np.uint8]) -> float:
-    y0, y1, x0, x1 = HAND_ROI
-    return float((image[y0:y1, x0:x1].min(axis=2) > 200).mean() * 100)
+    return float((crop(image, HAND_ROI).min(axis=2) > 200).mean() * 100)
 
 
 def _banner_present(image: NDArray[np.uint8]) -> bool:
-    b, g, r = (image[:, 100:2300, k].astype(np.int16) for k in range(3))
-    red_rows = ((r > 150) & (g < 110) & (b < 110)).mean(axis=1)
+    x0, x1 = BANNER_COLUMNS
+    red_rows = red_mask(image[:, x0:x1]).mean(axis=1)
     return bool(red_rows.max() > BANNER_RED_ROWS)
 
 
 def _dialog_button(image: NDArray[np.uint8], templates: TemplateSet) -> tuple[str | None, float]:
-    y0, y1, x0, x1 = BUTTON_ROI
-    gray = np.asarray(cv2.cvtColor(image[y0:y1, x0:x1], cv2.COLOR_BGR2GRAY), dtype=np.uint8)
-    scores = {
-        name: float(cv2.matchTemplate(gray, templates.dialogs[name], cv2.TM_CCOEFF_NORMED).max())
-        for name in ("continue", "next")
-    }
+    scores = dialog_scores(image, BUTTON_ROI, ("continue", "next"), templates)
     best = max(scores, key=lambda n: scores[n])
     other = min(scores.values())
     if scores[best] >= BUTTON_MIN_SCORE and scores[best] - other >= BUTTON_CLEARANCE:
@@ -79,13 +88,12 @@ def _dialog_button(image: NDArray[np.uint8], templates: TemplateSet) -> tuple[st
 
 
 def classify_screen(image: NDArray[np.uint8], templates: TemplateSet) -> Screen:
-    if image.shape[:2] != (IMAGE_SIZE[1], IMAGE_SIZE[0]):
+    if not has_size(image, IMAGE_SIZE):
         return Screen(BAD_SIZE, UiKind.UNKNOWN)
     if float(image[::20, 100::20].reshape(-1, 3).std(axis=0).max()) < UNIFORM_STD:
         return Screen(LOADING, UiKind.WAITING)
 
-    y0, y1, x0, x1 = SIDE_STRIP
-    blue, _, red = image[y0:y1, x0:x1].reshape(-1, 3).mean(axis=0)
+    blue, _, red = crop(image, SIDE_STRIP).reshape(-1, 3).mean(axis=0)
     bright = max(blue, red) >= (SAND_BRIGHT_MIN if red > blue else DIM_MAX)
     if red > blue:  # 砂色: タイトル・ステージ選択・再開確認。対戦の開始は人が行う
         return Screen(MENU if bright else MENU_DIALOG, UiKind.UNKNOWN)
@@ -98,8 +106,7 @@ def classify_screen(image: NDArray[np.uint8], templates: TemplateSet) -> Screen:
             return Screen(GAME_END, UiKind.GAME_OVER, score)
         return Screen(DIALOG, UiKind.UNKNOWN)
 
-    ty0, ty1, tx0, tx1 = TIP_STRIP
-    if image[ty0:ty1, tx0:tx1].reshape(-1, 3).mean(axis=0)[2] > TIP_RED_MIN:
+    if crop(image, TIP_STRIP).reshape(-1, 3).mean(axis=0)[2] > TIP_RED_MIN:
         return Screen(TUTORIAL_TIP, UiKind.UNKNOWN)
     if _banner_present(image):
         return Screen(BANNER, UiKind.WAITING)
