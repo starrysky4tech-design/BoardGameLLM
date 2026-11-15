@@ -53,7 +53,7 @@ def shifted_back(image: NDArray[np.uint8], dx: int) -> NDArray[np.uint8]:
     """横に dx ずれた画像を、基準の位置へ戻す。空いた端は端の色で埋める。"""
     if dx == 0:
         return image
-    matrix = np.float32([[1, 0, -dx], [0, 1, 0]])  # type: ignore[call-overload]
+    matrix = np.array([[1, 0, -dx], [0, 1, 0]], dtype=np.float32)
     out = cv2.warpAffine(
         image, matrix, (image.shape[1], image.shape[0]), borderMode=cv2.BORDER_REPLICATE
     )

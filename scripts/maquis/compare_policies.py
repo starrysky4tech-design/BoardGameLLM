@@ -6,6 +6,7 @@
 
 import random
 import sys
+from collections.abc import Callable
 from dataclasses import replace
 from statistics import mean
 
@@ -19,11 +20,11 @@ from bglm.plugins.maquis.logic.simulation import (
 from bglm.plugins.maquis.logic.strategy import MaquisStrategy, load_weights
 
 
-def run(name: str, make_policy: "type[object] | object", games: int) -> list[GameResult]:
+def run(name: str, make_policy: Callable[[int], Policy], games: int) -> list[GameResult]:
     results: list[GameResult] = []
     for seed in range(games):
         rng = random.Random(1000 + seed)  # 山札の引きは両方の方針で同じ並びから始まる
-        policy: Policy = make_policy(seed)  # type: ignore[operator]
+        policy = make_policy(seed)
         results.append(play_game(policy, rng))
     lost = sum(r.defeated for r in results)
     print(
